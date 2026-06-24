@@ -33,10 +33,13 @@ classDiagram
         room_number
         price
     }
+    class reception{
+        name : str
+    }
 
     Hotel "1" o-- "*" Room : 所有者
     user "1" -- "*" Reservation : 予約者
-    Reservation "*" -- "1" Room : 対象
+    Reservation "*" -- "*" Room : 対象
 ```
 
 制約: 同一の部屋について, 同一の宿泊日 (checkInDate) を対象とする予約は高々1つである (二重予約の禁止)。
@@ -57,8 +60,8 @@ classDiagram
 | 関連 | 多重度 | 読み方 |
 | --- | --- | --- |
 | Hotel ◇— Room (所有者) | 1 対 * | 1つのホテルは複数の部屋を保有する (集約)。|
-| Guest — Reservation (予約者) | 1 対 * | 1人の客は複数の予約を行いうるが, 1つの予約は1人の客に帰属する。|
-| Reservation — Room (対象) | * 対 1 | 1つの予約は1つの部屋を対象とする。1つの部屋は, 宿泊日が異なれば複数の予約の対象となりうる。|
+| user — Reservation (予約者) | 1 対 * | 1人の客は複数の予約を行いうるが, 1つの予約は1人の客に帰属する。|
+| Reservation — Room (対象) | * 対 * | 1つの予約は1つの部屋を対象とする。1つの部屋は, 宿泊日が異なれば複数の予約の対象となりうる。|
 
 
 ## オブジェクト図
@@ -68,8 +71,8 @@ classDiagram
 ```mermaid
 flowchart TB
     H["Grand Hotel : Hotel<br/>hotel_name = Grand Hotel"]
-    G1["Guest1 : Guest<br/>name = Taro Waseda"]
-    G2["Guest2 : Guest<br/>name = Hanako Sato"]
+    G1["Guest1 : user<br/>name = Taro Waseda"]
+    G2["Guest2 : user<br/>name = Hanako Sato"]
     RV1["Reservation1 : Reservation<br/>reservation_number = 012345<br/>checkInDate = 2026/07/01"]
     RV2["Reservation2 : Reservation<br/>reservation_number = 012346<br/>checkInDate = 2026/07/04"]
     R1["Room101 : Room<br/>room_number = 101<br/>price = 10000"]
