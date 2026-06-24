@@ -9,7 +9,7 @@
 ## 前提条件
 
 - 客は1泊のみ宿泊し, 翌日に必ずチェックアウトする (連泊は想定しない)。
-- 1つの予約は, 1部屋・1泊を対象とする。
+- 1つの予約は, 1泊を対象とする。
 - 予約番号, 部屋番号, 宿泊料 (料金) は, 必ずシステムが扱う要素とする。
 
 余力があれば後に変更してもいいかも...
@@ -20,24 +20,27 @@
 ```mermaid
 classDiagram
     class user {
-        name
+        name : str
     }
     class Reservation {
-        reservation_number
-        checkInDate
+        reservation_number : int
+        checkInDate : date
+        checkedIn : boolean
     }
     class Hotel {
-        hotel_name
+        hotel_name : str
     }
     class Room {
-        room_number
-        price
+        room_number : int
+        price : int
+        vacant : boolean 
     }
-    class reception{
+    class receptionist{
         name : str
     }
 
-    Hotel "1" o-- "*" Room : 所有者
+    Hotel "1" o-- "*" Room : 
+    Hotel "1" o-- "*" receptionist : 
     user "1" -- "*" Reservation : 予約者
     Reservation "*" -- "*" Room : 対象
 ```
@@ -50,7 +53,8 @@ classDiagram
 | クラス | 役割 | 属性 | 説明 |
 | --- | --- | --- | --- |
 | user | もの <br>(主体) | name | 予約を行う客。 |
-| Reservation | こと | reservation_number, checkInDate | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
+| receptionist | もの <br>(主体) | name | ホテルの受付係。 |
+| Reservation | こと | reservation_number, checkInDate, checkedIn | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
 | Room | もの <br>(対象) | room_number, price | 予約の対象となる部屋。price は宿泊料の源泉となる。|
 | Hotel | もの <br>(場所) | hotel_name | 部屋を保有する全体としての概念。|
 
@@ -59,24 +63,25 @@ classDiagram
 
 | 関連 | 多重度 | 読み方 |
 | --- | --- | --- |
-| Hotel ◇— Room (所有者) | 1 対 * | 1つのホテルは複数の部屋を保有する (集約)。|
+| Hotel ◇— Room | 1 対 * | 1つのホテルは複数の部屋を保有する (集約)。|
+| Hotel ◇— receptionist | 1 対 * | 1つのホテルは複数の受付係を保有する (集約)。|
 | user — Reservation (予約者) | 1 対 * | 1人の客は複数の予約を行いうるが, 1つの予約は1人の客に帰属する。|
 | Reservation — Room (対象) | * 対 * | 1つの予約は1つ以上の部屋を対象とする。1つの部屋は, 宿泊日が異なれば複数の予約の対象となりうる。|
 
 
 ## オブジェクト図
 
-グランドホテルが2つの部屋を保有し, 2人の客がそれぞれ異なる日に異なる部屋を予約した状況を表す。
+グランドホテルが2つの部屋を保有し, 2人の客がそれぞれ異なる日に異なる部屋を予約した状況（未チェックイン）を表す。
 
 ```mermaid
 flowchart TB
     H["Grand Hotel : Hotel<br/>hotel_name = Grand Hotel"]
     G1["Guest1 : user<br/>name = Taro Waseda"]
     G2["Guest2 : user<br/>name = Hanako Sato"]
-    RV1["Reservation1 : Reservation<br/>reservation_number = 012345<br/>checkInDate = 2026/07/01"]
-    RV2["Reservation2 : Reservation<br/>reservation_number = 012346<br/>checkInDate = 2026/07/04"]
-    R1["Room101 : Room<br/>room_number = 101<br/>price = 10000"]
-    R2["Room1102 : Room<br/>room_number = 1102<br/>price = 50000"]
+    RV1["Reservation1 : Reservation<br/>reservation_number = 012345<br/>checkInDate = 2026/07/01<br/>checkedIn = False" ]
+    RV2["Reservation2 : Reservation<br/>reservation_number = 012346<br/>checkInDate = 2026/07/04<br/>checkedIn = False"]
+    R1["Room101 : Room<br/>room_number = 101<br/>price = 10000<br/>vacant = False"]
+    R2["Room1102 : Room<br/>room_number = 1102<br/>price = 50000<br/>vacant = False"]
 
     G1 ---|予約者| RV1
     G2 ---|予約者| RV2
