@@ -54,7 +54,7 @@ classDiagram
 | --- | --- | --- | --- |
 | user | もの <br>(主体) | name | 予約を行う客。 |
 | receptionist | もの <br>(主体) | name | ホテルの受付係。 |
-| Reservation | こと | reservation_number, checkInDate | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
+| Reservation | こと | reservation_number, checkInDate, checkedIn | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
 | Room | もの <br>(対象) | room_number, price, vacant | 予約の対象となる部屋。price は宿泊料の源泉となる。vacantは宿泊可能ラベル（T/F）。|
 | Hotel | もの <br>(場所) | hotel_name | 部屋を保有する全体としての概念。|
 
