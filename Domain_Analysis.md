@@ -42,7 +42,7 @@ classDiagram
     Hotel "1" o-- "*" Room : 
     Hotel "1" o-- "*" receptionist : 
     user "1" -- "*" Reservation : 予約者
-    Reservation "*" -- "*" Room : 対象
+    Reservation "*" -- "*" Room
 ```
 
 制約: 同一の部屋について, 同一の宿泊日 (checkInDate) を対象とする予約は高々1つである (二重予約の禁止)。
@@ -54,8 +54,8 @@ classDiagram
 | --- | --- | --- | --- |
 | user | もの <br>(主体) | name | 予約を行う客。 |
 | receptionist | もの <br>(主体) | name | ホテルの受付係。 |
-| Reservation | こと | reservation_number, checkInDate, checkedIn | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
-| Room | もの <br>(対象) | room_number, price | 予約の対象となる部屋。price は宿泊料の源泉となる。|
+| Reservation | こと | reservation_number, checkInDate | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
+| Room | もの <br>(対象) | room_number, price, vacant | 予約の対象となる部屋。price は宿泊料の源泉となる。vacantは宿泊可能ラベル（T/F）。|
 | Hotel | もの <br>(場所) | hotel_name | 部屋を保有する全体としての概念。|
 
 
@@ -64,9 +64,9 @@ classDiagram
 | 関連 | 多重度 | 読み方 |
 | --- | --- | --- |
 | Hotel ◇— Room | 1 対 * | 1つのホテルは複数の部屋を保有する (集約)。|
-| Hotel ◇— receptionist | 1 対 * | 1つのホテルは複数の受付係を保有する (集約)。|
+| Hotel ◇— receptionist | 1 対 * | 1つのホテルは複数の受付係を雇用する (集約)。|
 | user — Reservation (予約者) | 1 対 * | 1人の客は複数の予約を行いうるが, 1つの予約は1人の客に帰属する。|
-| Reservation — Room (対象) | * 対 * | 1つの予約は1つ以上の部屋を対象とする。1つの部屋は, 宿泊日が異なれば複数の予約の対象となりうる。|
+| Reservation — Room | * 対 * | 1つの予約は1つ以上の部屋を対象とする。1つの部屋は, 宿泊日が異なれば複数の予約の対象となりうる。|
 
 
 ## オブジェクト図
