@@ -39,9 +39,7 @@ flowchart LR
     end
 
     Guest --- UC1
-    Guest --- UC2
     Reception --- UC2
-    Guest --- UC3
     Reception --- UC3
 ```
 

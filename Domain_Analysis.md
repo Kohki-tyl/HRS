@@ -34,6 +34,7 @@ classDiagram
     class RoomType {
         typeName : str
         price : int
+        totalRooms : int
     }
     class Room {
         roomNumber : int
@@ -92,8 +93,8 @@ classDiagram
 flowchart TB
     H["Grand Hotel : Hotel<br/>hotel_name = &quot;Grand Hotel&quot;"]
     
-    RT1["Standard : RoomType<br/>typeName = &quot;Standard&quot;<br/>price = 10000"]
-    RT2["Suite : RoomType<br/>typeName = &quot;Suite&quot;<br/>price = 50000"]
+    RT1["Standard : RoomType<br/>typeName = &quot;Standard&quot;<br/>price = 10000"<br/>totalRooms = 50]
+    RT2["Suite : RoomType<br/>typeName = &quot;Suite&quot;<br/>price = 50000"<br/>totalRooms = 10]
 
     G1["Guest1 : Guest<br/>name = &quot;Taro Waseda&quot;"]
     G2["Guest2 : Guest<br/>name = &quot;Hanako Sato&quot;"]
