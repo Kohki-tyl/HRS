@@ -40,25 +40,29 @@
 
 ```mermaid
 flowchart LR
-    G([":Guest"])
-    B[":ChatInterface<br/>«boundary»"]
-    C[":ReservationControl<br/>«control»"]
+    G([":利用者"])
+    B[":Chat_Interface<br/>«boundary»"]
+    C[":Reservation_Control<br/>«control»"]
     H[":Hotel<br/>«entity»"]
     RV[":Reservation<br/>«entity»"]
-    RM[":Room<br/>«entity»"]
 
-    G -->|"1: inputCheckInDate()"| B
-    B -->|"2: reserveRoom(checkInDate)"| C
+    %% フェーズ1：宿泊日入力と空室検索
+    G -->|"1: inputstayingDate()"| B
+    B -->|"2: searchRoom(stayingDate)"| C
     C -->|"2.1: getRoomList()"| H
-    C -->|"2.2: getReservations(checkInDate)"| RV
-    C -->|"2.3: «create» new Reservation(reservationNumber)"| RV
-    B -->|"3: [空室あり] notifyReservationNumber()"| G
-    B -->|"3a: [空室なし] notifyError()"| G
-    RV ---|"対象"| RM
-    H ---|"保有"| RM
+
+    %% 条件分岐の通知
+    C -->|"2.2: [空室あり] notifyRoomDetail()"| B
+    C -->|"2.3: [空室なし] notifyError()"| B
+
+    %% フェーズ2：部屋タイプ選択と予約確定
+    G -->|"3: selectRoomType()"| B
+    B -->|"4: reserveRoom(stayingDate, typeName)"| C
+    C -->|"4.1: createReservation(stayingDate, typeName)"| RV
+    C -->|"4.2: notifyReservationNumber()"| B
 ```
 
-補足: `ReservationControl` は, Hotel から部屋一覧を取得し (2.1), 指定日の既存予約を参照して (2.2), 予約のない部屋を1つ選んで新規予約を生成する (2.3)。空室がない場合は, バウンダリが `notifyError()` で予約できない旨を通知し, 再度宿泊日の入力を促す (代替系列 4a)。利用者が宿泊日を入力しない場合はユースケースを終了する (代替系列 3a)。なお, 予約の集合を保持・検索する仕組み (予約保管庫など) は設計レベルで具体化する。
+補足: `ReservationControl` は, Hotel から部屋一覧を取得し (2.1), 指定日の既存予約を参照して，予約可能な部屋の種類から選択を促す(2.2)。空室がない場合は, バウンダリが `notifyError()` で予約できない旨を通知し, 再度宿泊日の入力を促す (2.3)。その後，選ばれた部屋の種類と指定日の情報から新規予約を作成し (4.1)，予約番号を表示する(4.2)。なお, 予約の集合を保持・検索する仕組み (予約保管庫など) は設計レベルで具体化する。
 
 ### CD2. チェックインする
 
