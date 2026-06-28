@@ -68,23 +68,41 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    G([":Guest"])
-    B[":ChatInterface<br/>«boundary»"]
-    C[":CheckInControl<br/>«control»"]
-    RV[":Reservation<br/>«entity»"]
-    RM[":Room<br/>«entity»"]
+flowchart LR
+    U([": 利用者"])
+    C([": 受付係"])
+    B[": Chat_Interface<br/>«boundary»"]
+    Ctrl[": CheckIn_Control<br/>«control»"]
+    RV[": Reservation<br/>«entity»"]
+    RM[": Room<br/>«entity»"]
 
-    G -->|"1: inputReservationNumber()"| B
-    B -->|"2: checkIn(reservationNumber)"| C
-    C -->|"2.1: getReservation(reservationNumber)"| RV
-    C -->|"2.2: markCheckedIn()"| RV
-    C -->|"2.3: getRoomNumber()"| RM
-    B -->|"3: [予約あり] notifyRoomNumber()"| G
-    B -->|"3a: [予約なし] notifyError()"| G
+    %% 1. 予約の照会フェーズ
+    U -->|"1: tellReservationNumber()"| C
+    C -->|"2: inputReservationNumber()"| B
+    B -->|"3: searchReservation()"| Ctrl
+    Ctrl -->|"3.1: getReservation()"| RV
+
+    %% 照会結果の分岐通知
+    Ctrl -->|"3.2: [該当あり] notifyReservationDetail()"| B
+    Ctrl -->|"3.3: [該当なし] notifyError()"| B
+    B -->|"4: confirmDetail()"| U
+
+    %% 2. チェックイン確定・状態更新フェーズ
+    U -->|"5: approveDetail()"| C
+    C -->|"6: inputCheckIn()"| B
+    B -->|"7: CheckIn()"| Ctrl
+    Ctrl -->|"7.1: markCheckedIn()"| RV
+    Ctrl -->|"7.2: getRoomNumber()"| RM
+
+    %% 完了通知と鍵渡し
+    Ctrl -->|"7.3: notifyRoomNumber()"| B
+    B -->|"8: PassingKeyandNumber()"| U
+
+    %% 
     RV ---|"対象"| RM
 ```
 
-補足: 予約番号に対応する予約を取得し (2.1), 予約をチェックイン済み状態に更新し (2.2), その予約の対象である部屋の部屋番号を取得して (2.3) 利用者に通知する。該当予約がない場合は `notifyError()` を通知し, 再度予約番号の入力を促す (代替系列 4a)。利用者が予約番号を入力しない場合はユースケースを終了する (代替系列 3a)。
+補足: 予約番号に対応する予約を取得し (3.1), その内容の確認を行う。その後，内容の確認が完了したらチェックインを行い，該当予約をチェックイン完了とし(7.1)，鍵と部屋番号を利用者に引き渡す(8)。該当予約がない場合は `notifyError()` を通知し, 再度予約番号の入力を促す (代替系列 4a)。利用者が予約番号を入力しない場合はユースケースを終了する (代替系列 3a)。
 
 ### CD3. チェックアウトする
 
