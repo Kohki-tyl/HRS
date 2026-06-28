@@ -93,39 +93,58 @@ flowchart LR
     B -->|"7: CheckIn()"| Ctrl
     Ctrl -->|"7.1: markCheckedIn()"| RV
     Ctrl -->|"7.2: getRoomNumber()"| RM
+    Ctrl -->|"7.3: markUsing()"| RM
 
     %% 完了通知と鍵渡し
-    Ctrl -->|"7.3: notifyRoomNumber()"| B
+    Ctrl -->|"7.4: notifyRoomNumber()"| B
     B -->|"8: PassingKeyandNumber()"| U
 
     %% 
     RV ---|"対象"| RM
 ```
 
-補足: 予約番号に対応する予約を取得し (3.1), その内容の確認を行う。その後，内容の確認が完了したらチェックインを行い，該当予約をチェックイン完了とし(7.1)，鍵と部屋番号を利用者に引き渡す(8)。該当予約がない場合は `notifyError()` を通知し, 再度予約番号の入力を促す (代替系列 4a)。利用者が予約番号を入力しない場合はユースケースを終了する (代替系列 3a)。
+補足: 予約番号に対応する予約を取得し (3.1), その内容の確認を行う。その後，内容の確認が完了したらチェックインを行い，該当予約をチェックイン完了とし(7.1)，部屋のステータスを利用中に変更して (7.3)，鍵と部屋番号を利用者に引き渡す(8)。該当予約がない場合は `notifyError()` を通知し, 再度予約番号の入力を促す (代替系列 4a)。利用者が予約番号を入力しない場合はユースケースを終了する (代替系列 3a)。
 
 ### CD3. チェックアウトする
 
 ```mermaid
 flowchart LR
-    G([":Guest"])
-    B[":ChatInterface<br/>«boundary»"]
-    C[":CheckOutControl<br/>«control»"]
-    RV[":Reservation<br/>«entity»"]
-    RM[":Room<br/>«entity»"]
+    U([": 利用者"])
+    C([": 受付係"])
+    B[": Chat_Interface<br/>«boundary»"]
+    Ctrl[": CheckOut_Control<br/>«control»"]
+    RV[": Reservation<br/>«entity»"]
+    P[": Payment<br/>«entity»"]
+    RM[": Room<br/>«entity»"]
 
-    G -->|"1: inputRoomNumber()"| B
-    B -->|"2: checkOut(roomNumber)"| C
-    C -->|"2.1: getReservation(roomNumber)"| RV
-    C -->|"2.2: getPrice()"| RM
-    C -->|"2.3: markCheckedOut()"| RV
-    B -->|"3: [予約あり] notifyPrice()"| G
-    B -->|"4: [予約あり] notifyCompletion()"| G
-    B -->|"3a: [予約なし] notifyError()"| G
+    %% 1. 宿泊情報の照会フェーズ
+    U -->|"1: tellRoomNumber()"| C
+    C -->|"2: inputRoomNumber()"| B
+    B -->|"3: searchInformation()"| Ctrl
+    Ctrl -->|"3.1: getReservation()"| RV
+
+    %% 照会結果・料金提示の分岐通知
+    Ctrl -->|"3.2: [該当あり] getAmount()"| P
+    Ctrl -->|"3.3: [該当あり] notifyPrice()"| B
+    Ctrl -->|"3.4: [該当なし] notifyError()"| B
+    B -->|"4: ChargeFee()"| U
+
+    %% 2. 決済とチェックアウト確定フェーズ
+    U -->|"5: payFee()"| C
+    C -->|"6: inputCheckOut()"| B
+    B -->|"7: CheckOut()"| Ctrl
+    Ctrl -->|"7.1: markCheckedOut()"| RV
+    Ctrl -->|"7.2: markEmpty()"| RM
+
+    %% 完了通知
+    Ctrl -->|"7.3: notifyCompletion()"| B
+
+    %% エンティティ間の関係
+    RV ---|"決済"| P
     RV ---|"対象"| RM
 ```
 
-補足: 部屋番号からチェックイン済みの予約を特定し (2.1), 対象部屋の宿泊料を取得して (2.2) 利用者に通知する。支払いの後, 予約をチェックアウト済み状態に更新し (2.3), 完了を通知する。該当予約がない場合は `notifyError()` を通知し, 再度部屋番号の入力を促す (代替系列 4a)。利用者が部屋番号を入力しない場合はユースケースを終了する (代替系列 3a)。支払い方法 (チャット決済か現地払いか) は未定であり, 今後の検討事項とする。
+補足: 部屋番号からチェックイン済みの予約を特定し (3.1), 対象部屋の宿泊料を取得してする (3.2) 。支払いの後, 予約をチェックアウト済み状態に更新し (7.1),部屋のステータスを空室にして (7.2)，完了を通知する。該当予約がない場合は `notifyError()` を通知し, 再度部屋番号の入力を促す (3.4)。
 
 <br>
 
