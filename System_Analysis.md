@@ -68,7 +68,6 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-flowchart LR
     U([": 利用者"])
     C([": 受付係"])
     B[": Chat_Interface<br/>«boundary»"]
@@ -85,7 +84,7 @@ flowchart LR
     %% 照会結果の分岐通知
     Ctrl -->|"3.2: [該当あり] notifyReservationDetail()"| B
     Ctrl -->|"3.3: [該当なし] notifyError()"| B
-    B -->|"4: confirmDetail()"| U
+    C -->|"4: confirmDetail()"| U
 
     %% 2. チェックイン確定・状態更新フェーズ
     U -->|"5: approveDetail()"| C
@@ -97,13 +96,13 @@ flowchart LR
 
     %% 完了通知と鍵渡し
     Ctrl -->|"7.4: notifyRoomNumber()"| B
-    B -->|"8: PassingKeyandNumber()"| U
+    C -->|"8: PassingKeyandNumber()"| U
 
     %% 
     RV ---|"対象"| RM
 ```
 
-補足: 予約番号に対応する予約を取得し (3.1), その内容の確認を行う。その後，内容の確認が完了したらチェックインを行い，該当予約をチェックイン完了とし(7.1)，部屋のステータスを利用中に変更して (7.3)，鍵と部屋番号を利用者に引き渡す(8)。該当予約がない場合は `notifyError()` を通知し, 再度予約番号の入力を促す (代替系列 4a)。利用者が予約番号を入力しない場合はユースケースを終了する (代替系列 3a)。
+補足: 予約番号に対応する予約を取得し (3.1), その内容の確認を行う。その後，内容の確認が完了したらチェックインを行い，該当予約をチェックイン完了とし(7.1)，部屋のステータスを利用中に変更して (7.3)，鍵と部屋番号を利用者に引き渡す(8)。該当予約がない場合は `notifyError()` を通知し, 再度予約番号の入力を促す (3.3)。
 
 ### CD3. チェックアウトする
 
