@@ -84,7 +84,7 @@ flowchart LR
     %% 照会結果の分岐通知
     Ctrl -->|"3.2: [該当あり] notifyReservationDetail()"| B
     Ctrl -->|"3.3: [該当なし] notifyError()"| B
-    B -->|"4: confirmDetail()"| U
+    C -->|"4: confirmDetail()"| U
 
     %% 2. チェックイン確定・状態更新フェーズ
     U -->|"5: approveDetail()"| C
@@ -95,7 +95,7 @@ flowchart LR
 
     %% 完了通知と鍵渡し
     Ctrl -->|"7.3: notifyRoomNumber()"| B
-    B -->|"8: PassingKeyandNumber()"| U
+    C -->|"8: PassingKeyandNumber()"| U
 
     %% 
     RV ---|"対象"| RM
