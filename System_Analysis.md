@@ -68,7 +68,6 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-flowchart LR
     U([": 利用者"])
     C([": 受付係"])
     B[": Chat_Interface<br/>«boundary»"]
