@@ -46,9 +46,10 @@ classDiagram
         amount : int
         status : str
     }
+    Hotel "1" *-- "*" RoomType : 
     Hotel "1" *-- "*" Room : 
+    RoomType "1" o-- "*" Room : 
     Hotel "1" *-- "*" Receptionist : 
-    RoomType "1" -- "*" Room : 
     Guest "1" -- "*" Reservation : 予約者
     Reservation "*" -- "*" Room : 対象
     Reservation "1" -- "1" Payment : 紐づく決済
