@@ -29,9 +29,13 @@ classDiagram
         name
     }
     class Reservation {
-        reservation_number
-        staying_date
-        status
+        reservationNumber : int
+        roomNumber : int
+        stayingDate : date
+        status : str
+    }
+    class Hotel {
+        hotel_name : str
     }
     class RoomType {
         type_name
@@ -41,8 +45,11 @@ classDiagram
         room_number
     }
     class Payment {
-        amount
-        status
+        stayingDate : date
+        reservationNumber : int
+        roomNumber : int
+        amount : int
+        status : str
     }
     class Hotel {
         hotel_name
@@ -74,13 +81,13 @@ classDiagram
 
 | クラス | 役割 | 属性 | 説明 |
 | --- | --- | --- | --- |
-| Guest | もの (主体) | name | 予約を行う利用者。LINE を通じて操作する。識別は LINE ユーザ識別子 (設計レベル)。 |
-| Reservation | こと | reservation_number, staying_date, status | 宿泊日に対する1室以上の確保。status は 予約済 → 利用済。対象の部屋は予約時に確定する。 |
-| RoomType | もの (区分) | type_name, price | 部屋の種別と料金。種別追加は RoomType のインスタンス追加で行える。総室数は属さず, Room の数から導出する。 |
-| Room | もの (資源) | room_number | 個別の部屋。占有状態は予約とのリンクから導出する。 |
-| Payment | こと | amount, status | チェックイン時に予約ごとに発生する支払い。amount は割り当てた部屋の料金の合計 (確定時のスナップショット)。status は 未精算 → 精算済。 |
-| Hotel | もの (場所) | hotel_name | 部屋と受付係を擁する全体としての概念 (集約ルート)。 |
-| Receptionist | もの (主体) | name | 受付係。チェックアウト時に現金の受領完了を確認し, システムへ通知する。 |
+| Guest | もの <br>(主体) | name | 予約を行う客。 |
+| Receptionist | もの <br>(主体) | name | ホテルの受付係。 |
+| Reservation | こと | reservatioNumber, roomNumber, stayingData, status | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
+| RoomType | もの <br>(概念) | typeName, price | 部屋の種類（シングル、ツイン、スイートなど）。price（宿泊料）は部屋タイプごとに設定される。|
+| Room | もの <br>(対象) | roomNumber, status | 予約の対象となる具体的な部屋。ホテル（Hotel）に保有され、特定の部屋タイプ（RoomType）に属する。statusは空室状況などを表す。|
+| Hotel | もの <br>(場所) | hotel_name | 部屋を保有する全体としての概念。|
+| Payment | こと <br> | stayingDate, reservationNumber, roomNumber, amount, status | 予約（Reservation）に1対1で紐づく決済という事象。宿泊日、部屋番号、金額（amount）、支払状態（status）を管理する。|
 
 <br>
 
@@ -88,17 +95,12 @@ classDiagram
 
 | 関連 | 多重度 | 読み方 |
 | --- | --- | --- |
-| Guest — Reservation (予約者) | 1 対 * | 1人の利用者は複数の予約を行いうるが, 1つの予約は1人の利用者に帰属する。 |
-| Reservation — Room (対象) | * 対 1..* | 1つの予約は1つ以上の部屋を対象とする。1つの部屋は, 宿泊日が異なれば複数の予約の対象となりうる。 |
-| Reservation — Payment (紐づく決済) | 1 対 0..1 | 1つの予約に対し支払いは高々1つ (チェックイン時に生成)。1つの支払いは1つの予約に対応する。 |
-| Room — RoomType (種別) | * 対 1 | 各部屋は1つの種別に属する。 |
-| Hotel — Room (所有者) | 1 対 * | 1つのホテルは複数の部屋を保有する (集約)。 |
-| Hotel — Receptionist (雇用) | 1 対 * | 1つのホテルは複数の受付係を擁する (集約)。 |
-| Receptionist — Payment (確認) | 1 対 * | 受付係は複数の支払いの現金受領を確認しうる。1つの支払いの確認は1人の受付係が行う。 |
-
-
-<br>
-<br>
+| Hotel *— Room | 1 対 * | 1つのホテルは複数の部屋を保有する (コンポジション)。|
+| Hotel *— Receptionist | 1 対 * | 1つのホテルは複数の受付係を保有する (コンポジション)。|
+| RoomType — Room | 1 対 * | 1つの部屋タイプは、該当する複数の具体的な部屋を保有する 。|
+| Guest — Reservation (予約者) | 1 対 * | 1人の客は複数の予約を行いうるが, 1つの予約は1人の客に帰属する。|
+| Reservation — Room (対象) | 1 対 * | 1つの予約は1つ以上の部屋を対象とする。1つの部屋は, 宿泊日が異なれば複数の予約の対象となりうる。|
+| Reservation -- Payment (紐づく決済) | 1 対 1 | 1つの予約に対して、決済は必ず1つだけ一意に紐づく。。|
 
 ## オブジェクト図
 
