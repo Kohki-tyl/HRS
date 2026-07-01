@@ -40,70 +40,110 @@
 
 ```mermaid
 flowchart LR
-    G([":Guest"])
-    B[":ChatInterface<br/>«boundary»"]
-    C[":ReservationControl<br/>«control»"]
+    G([":利用者"])
+    B[":Chat_Interface<br/>«boundary»"]
+    C[":Reservation_Control<br/>«control»"]
     H[":Hotel<br/>«entity»"]
     RV[":Reservation<br/>«entity»"]
-    RM[":Room<br/>«entity»"]
 
-    G -->|"1: inputCheckInDate()"| B
-    B -->|"2: reserveRoom(checkInDate)"| C
+    %% フェーズ1：宿泊日入力と空室検索
+    G -->|"1: inputstayingDate()"| B
+    B -->|"2: searchRoom(stayingDate)"| C
     C -->|"2.1: getRoomList()"| H
-    C -->|"2.2: getReservations(checkInDate)"| RV
-    C -->|"2.3: «create» new Reservation(reservationNumber)"| RV
-    B -->|"3: [空室あり] notifyReservationNumber()"| G
-    B -->|"3a: [空室なし] notifyError()"| G
-    RV ---|"対象"| RM
-    H ---|"保有"| RM
+
+    %% 条件分岐の通知
+    C -->|"2.2: [空室あり] notifyRoomDetail()"| B
+    C -->|"2.3: [空室なし] notifyError()"| B
+
+    %% フェーズ2：部屋タイプ選択と予約確定
+    G -->|"3: selectRoomType()"| B
+    B -->|"4: reserveRoom(stayingDate, typeName)"| C
+    C -->|"4.1: createReservation(stayingDate, typeName)"| RV
+    C -->|"4.2: notifyReservationNumber()"| B
 ```
 
-補足: `ReservationControl` は, Hotel から部屋一覧を取得し (2.1), 指定日の既存予約を参照して (2.2), 予約のない部屋を1つ選んで新規予約を生成する (2.3)。空室がない場合は, バウンダリが `notifyError()` で予約できない旨を通知し, 再度宿泊日の入力を促す (代替系列 4a)。利用者が宿泊日を入力しない場合はユースケースを終了する (代替系列 3a)。なお, 予約の集合を保持・検索する仕組み (予約保管庫など) は設計レベルで具体化する。
+補足: `ReservationControl` は, Hotel から部屋一覧を取得し (2.1), 指定日の既存予約を参照して，予約可能な部屋の種類から選択を促す(2.2)。空室がない場合は, バウンダリが `notifyError()` で予約できない旨を通知し, 再度宿泊日の入力を促す (2.3)。その後，選ばれた部屋の種類と指定日の情報から新規予約を作成し (4.1)，予約番号を表示する(4.2)。なお, 予約の集合を保持・検索する仕組み (予約保管庫など) は設計レベルで具体化する。
 
 ### CD2. チェックインする
 
 ```mermaid
 flowchart LR
-    G([":Guest"])
-    B[":ChatInterface<br/>«boundary»"]
-    C[":CheckInControl<br/>«control»"]
-    RV[":Reservation<br/>«entity»"]
-    RM[":Room<br/>«entity»"]
+    U([": 利用者"])
+    C([": 受付係"])
+    B[": Chat_Interface<br/>«boundary»"]
+    Ctrl[": CheckIn_Control<br/>«control»"]
+    RV[": Reservation<br/>«entity»"]
+    RM[": Room<br/>«entity»"]
 
-    G -->|"1: inputReservationNumber()"| B
-    B -->|"2: checkIn(reservationNumber)"| C
-    C -->|"2.1: getReservation(reservationNumber)"| RV
-    C -->|"2.2: markCheckedIn()"| RV
-    C -->|"2.3: getRoomNumber()"| RM
-    B -->|"3: [予約あり] notifyRoomNumber()"| G
-    B -->|"3a: [予約なし] notifyError()"| G
+    %% 1. 予約の照会フェーズ
+    U -->|"1: tellReservationNumber()"| C
+    C -->|"2: inputReservationNumber()"| B
+    B -->|"3: searchReservation()"| Ctrl
+    Ctrl -->|"3.1: getReservation()"| RV
+
+    %% 照会結果の分岐通知
+    Ctrl -->|"3.2: [該当あり] notifyReservationDetail()"| B
+    Ctrl -->|"3.3: [該当なし] notifyError()"| B
+    C -->|"4: confirmDetail()"| U
+
+    %% 2. チェックイン確定・状態更新フェーズ
+    U -->|"5: approveDetail()"| C
+    C -->|"6: inputCheckIn()"| B
+    B -->|"7: CheckIn()"| Ctrl
+    Ctrl -->|"7.1: markCheckedIn()"| RV
+    Ctrl -->|"7.2: getRoomNumber()"| RM
+    Ctrl -->|"7.3: markUsing()"| RM
+
+    %% 完了通知と鍵渡し
+    Ctrl -->|"7.4: notifyRoomNumber()"| B
+    C -->|"8: PassingKeyandNumber()"| U
+
+    %% 
     RV ---|"対象"| RM
 ```
 
-補足: 予約番号に対応する予約を取得し (2.1), 予約をチェックイン済み状態に更新し (2.2), その予約の対象である部屋の部屋番号を取得して (2.3) 利用者に通知する。該当予約がない場合は `notifyError()` を通知し, 再度予約番号の入力を促す (代替系列 4a)。利用者が予約番号を入力しない場合はユースケースを終了する (代替系列 3a)。
+補足: 予約番号に対応する予約を取得し (3.1), その内容の確認を行う。その後，内容の確認が完了したらチェックインを行い，該当予約をチェックイン完了とし(7.1)，部屋のステータスを利用中に変更して (7.3)，鍵と部屋番号を利用者に引き渡す(8)。該当予約がない場合は `notifyError()` を通知し, 再度予約番号の入力を促す (3.3)。
 
 ### CD3. チェックアウトする
 
 ```mermaid
 flowchart LR
-    G([":Guest"])
-    B[":ChatInterface<br/>«boundary»"]
-    C[":CheckOutControl<br/>«control»"]
-    RV[":Reservation<br/>«entity»"]
-    RM[":Room<br/>«entity»"]
+    U([": 利用者"])
+    C([": 受付係"])
+    B[": Chat_Interface<br/>«boundary»"]
+    Ctrl[": CheckOut_Control<br/>«control»"]
+    RV[": Reservation<br/>«entity»"]
+    P[": Payment<br/>«entity»"]
+    RM[": Room<br/>«entity»"]
 
-    G -->|"1: inputRoomNumber()"| B
-    B -->|"2: checkOut(roomNumber)"| C
-    C -->|"2.1: getReservation(roomNumber)"| RV
-    C -->|"2.2: getPrice()"| RM
-    C -->|"2.3: markCheckedOut()"| RV
-    B -->|"3: [予約あり] notifyPrice()"| G
-    B -->|"4: [予約あり] notifyCompletion()"| G
-    B -->|"3a: [予約なし] notifyError()"| G
+    %% 1. 宿泊情報の照会フェーズ
+    U -->|"1: tellRoomNumber()"| C
+    C -->|"2: inputRoomNumber()"| B
+    B -->|"3: searchInformation()"| Ctrl
+    Ctrl -->|"3.1: getReservation()"| RV
+
+    %% 照会結果・料金提示の分岐通知
+    Ctrl -->|"3.2: [該当あり] getAmount()"| P
+    Ctrl -->|"3.3: [該当あり] notifyPrice()"| B
+    Ctrl -->|"3.4: [該当なし] notifyError()"| B
+    B -->|"4: ChargeFee()"| U
+
+    %% 2. 決済とチェックアウト確定フェーズ
+    U -->|"5: payFee()"| C
+    C -->|"6: inputCheckOut()"| B
+    B -->|"7: CheckOut()"| Ctrl
+    Ctrl -->|"7.1: markCheckedOut()"| RV
+    Ctrl -->|"7.2: markEmpty()"| RM
+
+    %% 完了通知
+    Ctrl -->|"7.3: notifyCompletion()"| B
+
+    %% エンティティ間の関係
+    RV ---|"決済"| P
     RV ---|"対象"| RM
 ```
 
-補足: 部屋番号からチェックイン済みの予約を特定し (2.1), 対象部屋の宿泊料を取得して (2.2) 利用者に通知する。支払いの後, 予約をチェックアウト済み状態に更新し (2.3), 完了を通知する。該当予約がない場合は `notifyError()` を通知し, 再度部屋番号の入力を促す (代替系列 4a)。利用者が部屋番号を入力しない場合はユースケースを終了する (代替系列 3a)。支払い方法 (チャット決済か現地払いか) は未定であり, 今後の検討事項とする。
+補足: 部屋番号からチェックイン済みの予約を特定し (3.1), 対象部屋の宿泊料を取得してする (3.2) 。支払いの後, 予約をチェックアウト済み状態に更新し (7.1),部屋のステータスを空室にして (7.2)，完了を通知する。該当予約がない場合は `notifyError()` を通知し, 再度部屋番号の入力を促す (3.4)。
 
 <br>
 
