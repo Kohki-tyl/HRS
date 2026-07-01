@@ -24,7 +24,6 @@ classDiagram
     }
     class Reservation {
         reservationNumber : int
-        roomNumber : int
         stayingDate : date
         status : str
     }
@@ -79,7 +78,7 @@ classDiagram
 | Hotel *— Receptionist | 1 対 * | 1つのホテルは複数の受付係を保有する (コンポジション)。|
 | RoomType — Room | 1 対 * | 1つの部屋タイプは、該当する複数の具体的な部屋を保有する 。|
 | Guest — Reservation (予約者) | 1 対 * | 1人の客は複数の予約を行いうるが, 1つの予約は1人の客に帰属する。|
-| Reservation — Room (対象) | 1 対 * | 1つの予約は1つ以上の部屋を対象とする。1つの部屋は, 宿泊日が異なれば複数の予約の対象となりうる。|
+| Reservation — Room (対象) | * 対 * | 1つの予約は1つ以上の部屋を対象とする。1つの部屋は, 宿泊日が異なれば複数の予約の対象となりうる。|
 | Reservation -- Payment (紐づく決済) | 1 対 1 | 1つの予約に対して、決済は必ず1つだけ一意に紐づく。。|
 
 ## オブジェクト図
