@@ -29,7 +29,7 @@ classDiagram
         status : str
     }
     class Hotel {
-        hotel_name : str
+        hotelName : str
     }
     class RoomType {
         typeName : str
@@ -44,9 +44,6 @@ classDiagram
         name : str
     }
     class Payment {
-        stayingDate : date
-        reservationNumber : int
-        roomNumber : int
         amount : int
         status : str
     }
@@ -70,8 +67,8 @@ classDiagram
 | Reservation | こと | reservatioNumber, roomNumber, stayingData, status | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
 | RoomType | もの <br>(概念) | typeName, price | 部屋の種類（シングル、ツイン、スイートなど）。price（宿泊料）は部屋タイプごとに設定される。|
 | Room | もの <br>(対象) | roomNumber, status | 予約の対象となる具体的な部屋。ホテル（Hotel）に保有され、特定の部屋タイプ（RoomType）に属する。statusは空室状況などを表す。|
-| Hotel | もの <br>(場所) | hotel_name | 部屋を保有する全体としての概念。|
-| Payment | こと <br> | stayingDate, reservationNumber, roomNumber, amount, status | 予約（Reservation）に1対1で紐づく決済という事象。宿泊日、部屋番号、金額（amount）、支払状態（status）を管理する。|
+| Hotel | もの <br>(場所) | hotelName | 部屋を保有する全体としての概念。|
+| Payment | こと <br> | amount, status | 予約（Reservation）に1対1で紐づく決済という事象。金額（amount）、支払状態（status）を管理する。宿泊日、部屋番号は関連から取得する。|
 
 
 ### 関連と多重度
@@ -91,7 +88,7 @@ classDiagram
 
 ```mermaid
 flowchart TB
-    H["Grand Hotel : Hotel<br/>hotel_name = &quot;Grand Hotel&quot;"]
+    H["Grand Hotel : Hotel<br/>hotelName = &quot;Grand Hotel&quot;"]
     
     RT1["Standard : RoomType<br/>typeName = &quot;Standard&quot;<br/>price = 10000"<br/>totalRooms = 50]
     RT2["Suite : RoomType<br/>typeName = &quot;Suite&quot;<br/>price = 50000"<br/>totalRooms = 10]
