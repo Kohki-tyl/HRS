@@ -51,6 +51,9 @@ class RoomType:
     total_rooms: int
     rooms: List[Room] = field(default_factory=list)
 
+    def get_available_count(self, staying_date: date) -> int:
+        return len([r for r in self.rooms if r.is_vacant_on(staying_date)])
+
     def check_stock(self, number_of_rooms: int, staying_date: date) -> bool:
         # 指定日に空いている部屋をフィルタリング
         vacant_rooms = [r for r in self.rooms if r.is_vacant_on(staying_date)]
@@ -78,11 +81,25 @@ class Hotel:
                 available_types.append(room_type)
         return available_types
 
-    def allocate_rooms(self, staying_date: date, type_name: str, number_of_rooms: int) -> List[Room]:
-        for room_type in self.room_types:
-            if room_type.type_name == type_name:
-                return room_type.reduce_stock(number_of_rooms, staying_date)
-        raise ValueError(f"該当する部屋タイプが見つかりません: {type_name}")
+    def allocate_rooms(self, staying_date: date, requested_rooms: dict[str, int]) -> List[Room]:
+        assigned_rooms = []
+        
+        # 1. 事前チェック: 要求された全タイプの在庫が足りているか確認（All or Nothing）
+        for type_name, count in requested_rooms.items():
+            if count <= 0:
+                continue
+            room_type = next((rt for rt in self.room_types if rt.type_name == type_name), None)
+            if not room_type or not room_type.check_stock(count, staying_date):
+                raise ValueError(f"【在庫不足】{type_name} は {count} 部屋ご用意できません。")
+
+        # 2. 確保実行: 全て足りている場合のみ、実際の在庫を減らす
+        for type_name, count in requested_rooms.items():
+            if count <= 0:
+                continue
+            room_type = next(rt for rt in self.room_types if rt.type_name == type_name)
+            assigned_rooms.extend(room_type.reduce_stock(count, staying_date))
+            
+        return assigned_rooms
 
 @dataclass
 class Payment:

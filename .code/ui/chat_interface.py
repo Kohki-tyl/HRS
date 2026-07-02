@@ -48,53 +48,55 @@ class ChatInterface:
             # 2. 予約フロー
             # ==========================================
             elif state == SessionState.RES_AWAITING_DATE:
-                # 日付のパースと一時保存
                 staying_date = datetime.strptime(text.strip(), "%Y-%m-%d").date()
-                self.session_manager.update_context(user_id, "staying_date", staying_date)
-                self.session_manager.update_state(user_id, SessionState.RES_AWAITING_COUNT)
-                return f"{staying_date} ですね。\n希望する部屋数を数字で入力してください。"
-
-            elif state == SessionState.RES_AWAITING_COUNT:
-                count = int(text.strip())
-                staying_date = session["context"]["staying_date"]
                 
-                # ここで初めて Application層 を呼び出し、空室を確認
-                available_types = self.res_ctrl.search_room(staying_date, count)
-                if not available_types:
+                # 日付をもとに空室状況を取得
+                stocks = self.res_ctrl.get_available_stocks(staying_date)
+                if not stocks:
                     self.session_manager.clear_session(user_id)
-                    return "申し訳ありません。ご希望の日程・部屋数でご用意できる部屋がありません。最初からやり直してください。"
+                    return "申し訳ありません。ご希望の日程でご用意できる部屋がありません。"
                 
-                self.session_manager.update_context(user_id, "count", count)
-                self.session_manager.update_state(user_id, SessionState.RES_AWAITING_TYPE)
+                self.session_manager.update_context(user_id, "staying_date", staying_date)
+                self.session_manager.update_state(user_id, SessionState.RES_AWAITING_ROOMS_SELECTION)
                 
-                type_names = [t.type_name for t in available_types]
-                return f"以下の部屋タイプがご用意可能です。\n【 {', '.join(type_names)} 】\n\nご希望の部屋タイプを入力してください。"
+                # 空室状況のテキスト生成
+                stock_text = "\n".join([f"・{name}: 残り {cnt} 室" for name, cnt in stocks.items()])
+                return (
+                    f"{staying_date} の空室状況です。\n{stock_text}\n\n"
+                    "希望する部屋と数をカンマ区切りで入力してください。\n"
+                    "（例: Standard 1, Suite 1）"
+                )
 
-            elif state == SessionState.RES_AWAITING_TYPE:
-                type_name = text.strip()
-                self.session_manager.update_context(user_id, "type_name", type_name)
+            elif state == SessionState.RES_AWAITING_ROOMS_SELECTION:
+                # 入力テキスト例: "Standard 1, Suite 1" を辞書に変換する
+                requested_rooms = {}
+                try:
+                    parts = text.split(",")
+                    for part in parts:
+                        name, count_str = part.strip().split()
+                        requested_rooms[name] = int(count_str)
+                except Exception:
+                    return "形式が正しくありません。「Standard 1, Suite 1」のように入力してください。"
+                
+                self.session_manager.update_context(user_id, "requested_rooms", requested_rooms)
                 self.session_manager.update_state(user_id, SessionState.RES_AWAITING_NAME)
                 return "ありがとうございます。\n最後にご予約者様のお名前を入力してください。"
 
             elif state == SessionState.RES_AWAITING_NAME:
                 guest_name = text.strip()
                 ctx = session["context"]
-                
-                # 予約番号の自動採番（実運用ではDBのシーケンス等を利用）
                 res_num = random.randint(100000, 999999)
                 
-                # Application層 を呼び出し、予約を確定（DBへ保存）
-                reservation = self.res_ctrl.reserve_room(
+                # コントロール層へ辞書(requested_rooms)を渡す
+                reservation = self.res_ctrl.reserve_rooms(
                     reservation_number=res_num,
                     staying_date=ctx["staying_date"],
                     guest_name=guest_name,
-                    type_name=ctx["type_name"],
-                    number_of_rooms=ctx["count"]
+                    requested_rooms=ctx["requested_rooms"]
                 )
                 
                 self.session_manager.clear_session(user_id)
-                return f"ご予約が完了しました！\n\n予約番号: {reservation.reservation_number}\n宿泊料金: {reservation.get_amount()}円\n\n当日お待ちしております。"
-
+                return f"ご予約が完了しました！\n予約番号: {reservation.reservation_number}\n料金: {reservation.get_amount()}円"
             # ==========================================
             # 3. チェックインフロー
             # ==========================================
