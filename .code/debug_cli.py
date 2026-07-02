@@ -95,14 +95,36 @@ def main():
             except Exception as e:
                 print(f"✕ エラー発生: {e}")
 
-        # --- UC2: チェックイン ---
+# --- UC2: チェックイン ---
         elif choice == "2":
             try:
                 res_num = int(input("予約番号を入力: "))
-                assigned_rooms = ci_ctrl.check_in(res_num)
-                print("-" * 20)
-                print(f"【チェックイン完了】 お部屋番号: {assigned_rooms}")
-                print("-" * 20)
+                
+                # 【ステップ1】まず予約情報を照会して詳細を表示する
+                reservation = ci_ctrl.search_reservation(res_num)
+                if not reservation:
+                    print("✕ 該当する予約が見つかりません。")
+                    continue
+                if reservation.status != ReservationStatus.CREATED:
+                    print(f"✕ この予約は現在「{reservation.status.value}」状態のため、チェックインできません。")
+                    continue
+                
+                print("\n--- 予約詳細確認 ---")
+                print(f"ご予約者様: {reservation.guest.name}")
+                print(f"ご宿泊日程: {reservation.staying_date}")
+                print(f"予定お部屋: {reservation.get_room_numbers()}")
+                print("--------------------")
+                
+                # 【ステップ2】受付係（ユーザー）に承認を求める
+                confirm = input("以上の内容でチェックインを確定しますか？ (y/n): ")
+                if confirm.lower() == 'y':
+                    assigned_rooms = ci_ctrl.check_in(res_num)
+                    print("-" * 20)
+                    print(f"【チェックイン完了】 鍵をお渡しください。お部屋番号: {assigned_rooms}")
+                    print("-" * 20)
+                else:
+                    print("チェックイン手続きを中断しました。")
+
             except BureaucraticError as e:
                 print(f"✕ 業務ルールエラー: {e}")
             except Exception as e:
@@ -113,21 +135,30 @@ def main():
             try:
                 room_num = int(input("退室する部屋番号を入力: "))
                 
-                # 事前に料金を取得して表示
+                # 【ステップ1】滞在情報を照会して請求額を表示する
                 reservation = co_ctrl.search_information(room_num)
-                if reservation:
-                    print(f"ご請求額は {reservation.get_amount()}円 です。")
-                    
-                co_ctrl.check_out(room_num)
-                print("-" * 20)
-                print("【チェックアウト完了】 お気をつけてお帰りください。")
-                print("-" * 20)
+                if not reservation:
+                    print("✕ 該当するお部屋の滞在情報が見つかりません。")
+                    continue
+                
+                print("\n--- チェックアウト精算 ---")
+                print(f"ご宿泊者様: {reservation.guest.name}")
+                print(f"ご請求額  : {reservation.get_amount()} 円")
+                print("--------------------------")
+                
+                # 【ステップ2】支払いの受領確認を求める
+                confirm = input("上記金額の支払いを受け取り、チェックアウトを確定しますか？ (y/n): ")
+                if confirm.lower() == 'y':
+                    co_ctrl.check_out(room_num)
+                    print("-" * 20)
+                    print("【チェックアウト完了】 お気をつけてお帰りください。")
+                    print("-" * 20)
+                else:
+                    print("チェックアウト手続きを中断しました。")
+
             except BureaucraticError as e:
                 print(f"✕ 業務ルールエラー: {e}")
             except Exception as e:
                 print(f"✕ エラー発生: {e}")
-        else:
-            print("無効な入力です。")
-
 if __name__ == "__main__":
     main()
