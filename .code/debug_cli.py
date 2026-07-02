@@ -23,7 +23,6 @@ class InMemoryReservationRepository(ReservationRepository):
         return self.db.get(reservation_number)
 
     def find_by_room_number(self, room_number: int) -> Optional[Reservation]:
-        # 部屋番号から、現在「チェックイン済み」の予約を探す
         for res in self.db.values():
             if room_number in res.get_room_numbers() and res.status == ReservationStatus.CHECKED_IN:
                 return res
@@ -33,7 +32,6 @@ class InMemoryReservationRepository(ReservationRepository):
 # 2. 初期セットアップ (DI)
 # ==========================================
 def setup_system():
-    # 部屋とホテルの初期化
     rooms_standard = [Room(room_number=101), Room(room_number=102)]
     rooms_suite = [Room(room_number=201)]
     room_types = [
@@ -42,7 +40,6 @@ def setup_system():
     ]
     hotel = Hotel(hotel_name="Debug Hotel", room_types=room_types)
 
-    # リポジトリとコントロールの初期化
     repository = InMemoryReservationRepository()
     res_ctrl = ReservationControl(repository, hotel)
     ci_ctrl = CheckInControl(repository)
@@ -55,9 +52,9 @@ def setup_system():
 # ==========================================
 def main():
     res_ctrl, ci_ctrl, co_ctrl = setup_system()
-    print("=" * 40)
-    print(" HRS デバッグターミナル起動")
-    print("=" * 40)
+    print("=" * 50)
+    print(" HRS デバッグターミナル起動 (複数タイプ一括予約対応版)")
+    print("=" * 50)
 
     while True:
         print("\n[操作を選択] 1:予約  2:チェックイン  3:チェックアウト  0:終了")
@@ -67,40 +64,55 @@ def main():
             print("デバッグを終了します。")
             break
 
-        # --- UC1: 予約 ---
+        # --- UC1: 予約 (複数部屋タイプ対応) ---
         elif choice == "1":
             try:
                 date_str = input("宿泊日 (YYYY-MM-DD) [例: 2026-07-01]: ")
                 staying_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-                count = int(input("希望部屋数: "))
 
-                available_types = res_ctrl.search_room(staying_date, count)
-                if not available_types:
-                    print("✕ 申し訳ありません。空室がありません。")
+                # アプリケーション層から日付ベースの空室状況（辞書）を取得
+                stocks = res_ctrl.get_available_stocks(staying_date)
+                if not stocks:
+                    print("✕ 申し訳ありません。ご希望の日程でご用意できる部屋がありません。")
                     continue
                 
-                print("○ 空室のある部屋タイプ:", [t.type_name for t in available_types])
-                type_name = input("希望の部屋タイプを入力: ")
-                guest_name = input("ご予約者名: ")
+                print("\n--- 空室状況 ---")
+                for type_name, count in stocks.items():
+                    print(f"・{type_name}: 残り {count} 室")
+                print("----------------")
                 
+                # ユーザーからテキスト入力（カンマ区切り）を受け取る
+                req_str = input("希望する部屋と数を入力 (例: Standard 1, Suite 1): ")
+                
+                # 文字列をパースして辞書 {type_name: count} に変換
+                requested_rooms = {}
+                for part in req_str.split(","):
+                    name, count_str = part.strip().split()
+                    requested_rooms[name] = int(count_str)
+
+                guest_name = input("ご予約者名: ")
                 res_num = random.randint(100000, 999999)
-                res = res_ctrl.reserve_room(res_num, staying_date, guest_name, type_name, count)
+                
+                # アプリケーション層へ一括予約を依頼
+                res = res_ctrl.reserve_rooms(res_num, staying_date, guest_name, requested_rooms)
                 
                 print("-" * 20)
                 print(f"【予約完了】 予約番号: {res.reservation_number} / 料金: {res.get_amount()}円")
                 print(f"（内部データ確認: 確保された部屋 -> {res.get_room_numbers()}）")
                 print("-" * 20)
+
             except ValueError:
-                print("✕ 入力形式が正しくありません。")
+                print("✕ 入力形式が正しくありません。「Standard 1, Suite 1」のように入力してください。")
+            except BureaucraticError as e:
+                print(f"✕ 業務ルールエラー: {e}")
             except Exception as e:
                 print(f"✕ エラー発生: {e}")
 
-# --- UC2: チェックイン ---
+        # --- UC2: チェックイン ---
         elif choice == "2":
             try:
                 res_num = int(input("予約番号を入力: "))
                 
-                # 【ステップ1】まず予約情報を照会して詳細を表示する
                 reservation = ci_ctrl.search_reservation(res_num)
                 if not reservation:
                     print("✕ 該当する予約が見つかりません。")
@@ -115,7 +127,6 @@ def main():
                 print(f"予定お部屋: {reservation.get_room_numbers()}")
                 print("--------------------")
                 
-                # 【ステップ2】受付係（ユーザー）に承認を求める
                 confirm = input("以上の内容でチェックインを確定しますか？ (y/n): ")
                 if confirm.lower() == 'y':
                     assigned_rooms = ci_ctrl.check_in(res_num)
@@ -123,7 +134,7 @@ def main():
                     print(f"【チェックイン完了】 鍵をお渡しください。お部屋番号: {assigned_rooms}")
                     print("-" * 20)
                 else:
-                    print("チェックイン手続きを中断しました。")
+                    print("手続きを中断しました。")
 
             except BureaucraticError as e:
                 print(f"✕ 業務ルールエラー: {e}")
@@ -135,7 +146,6 @@ def main():
             try:
                 room_num = int(input("退室する部屋番号を入力: "))
                 
-                # 【ステップ1】滞在情報を照会して請求額を表示する
                 reservation = co_ctrl.search_information(room_num)
                 if not reservation:
                     print("✕ 該当するお部屋の滞在情報が見つかりません。")
@@ -146,7 +156,6 @@ def main():
                 print(f"ご請求額  : {reservation.get_amount()} 円")
                 print("--------------------------")
                 
-                # 【ステップ2】支払いの受領確認を求める
                 confirm = input("上記金額の支払いを受け取り、チェックアウトを確定しますか？ (y/n): ")
                 if confirm.lower() == 'y':
                     co_ctrl.check_out(room_num)
@@ -154,11 +163,14 @@ def main():
                     print("【チェックアウト完了】 お気をつけてお帰りください。")
                     print("-" * 20)
                 else:
-                    print("チェックアウト手続きを中断しました。")
+                    print("手続きを中断しました。")
 
             except BureaucraticError as e:
                 print(f"✕ 業務ルールエラー: {e}")
             except Exception as e:
                 print(f"✕ エラー発生: {e}")
+        else:
+            print("無効な入力です。")
+
 if __name__ == "__main__":
     main()
