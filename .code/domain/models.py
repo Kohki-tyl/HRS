@@ -107,14 +107,14 @@ class Reservation:
         
         self.status = ReservationStatus.CHECKED_IN
         for room in self.rooms:
-            room.mark_using() 
+            room.mark_using(self.staying_date)
 
     def check_out(self) -> None:
         if self.status != ReservationStatus.CHECKED_IN:
             raise BureaucraticError("チェックインされていない予約です。")
 
         for room in self.rooms:
-            room.mark_empty()
+            room.mark_empty(self.staying_date)
             
         self.payment.mark_paid()
         self.status = ReservationStatus.COMPLETED
