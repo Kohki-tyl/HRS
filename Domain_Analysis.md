@@ -37,7 +37,7 @@ classDiagram
     }
     class Room {
         roomNumber : int
-        status : str
+        reservedDates : Set[date]
     }
     class Receptionist{
         name : str
@@ -66,7 +66,7 @@ classDiagram
 | Receptionist | もの <br>(主体) | name | ホテルの受付係。 |
 | Reservation | こと | reservatioNumber, roomNumber, stayingData, status | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
 | RoomType | もの <br>(概念) | typeName, price | 部屋の種類（シングル、ツイン、スイートなど）。price（宿泊料）は部屋タイプごとに設定される。|
-| Room | もの <br>(対象) | roomNumber, status | 予約の対象となる具体的な部屋。ホテル（Hotel）に保有され、特定の部屋タイプ（RoomType）に属する。statusは空室状況などを表す。|
+| Room | もの <br>(対象) | roomNumber, reservedDates | 予約の対象となる具体的な部屋。ホテル（Hotel）に保有され、特定の部屋タイプ（RoomType）に属する。reservedDatesは予約済みの日付を持つ。|
 | Hotel | もの <br>(場所) | hotelName | 部屋を保有する全体としての概念。|
 | Payment | こと <br> | amount, status | 予約（Reservation）に1対1で紐づく決済という事象。金額（amount）、支払状態（status）を管理する。宿泊日、部屋番号は関連から取得する。|
 
