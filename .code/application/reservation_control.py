@@ -1,6 +1,6 @@
 from datetime import date
 from typing import List
-from domain import Hotel, RoomType, Reservation, Guest, Payment, ReservationRepository
+from domain import Hotel, RoomType, Reservation, Guest, Payment, ReservationRepository, BureaucraticError
 
 class ReservationControl:
     """UC1: 部屋を予約する の進行を管理するコントロール"""
@@ -12,6 +12,8 @@ class ReservationControl:
 
     def search_room(self, staying_date: date, number_of_rooms: int) -> List[RoomType]:
         """宿泊日と部屋数を指定し、空室のある部屋タイプ一覧を取得する"""
+        if staying_date < date.today():
+            raise BureaucraticError(f"過去の日付（{staying_date}）は指定できません。本日以降の日付を入力してください。")
         return self.hotel.get_available_room_types(staying_date, number_of_rooms)
 
     def reserve_room(
@@ -23,6 +25,9 @@ class ReservationControl:
         number_of_rooms: int
     ) -> Reservation:
         """部屋の確保と予約オブジェクトの生成・保存を行う"""
+
+        if staying_date < date.today():
+            raise BureaucraticError("過去の日付での予約はできません。")
         
         # 1. ホテルに処理を委譲して具体的な部屋（日付指定）を確保
         assigned_rooms = self.hotel.allocate_rooms(staying_date, type_name, number_of_rooms)
