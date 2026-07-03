@@ -63,7 +63,7 @@ classDiagram
 | --- | --- | --- | --- |
 | Guest | もの <br>(主体) | name | 予約を行う客。 |
 | Receptionist | もの <br>(主体) | name | ホテルの受付係。 |
-| Reservation | こと | reservatioNumber, roomNumber, stayingData, status | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
+| Reservation | こと | reservatioNumber, stayingData, status | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
 | RoomType | もの <br>(概念) | typeName, price | 部屋の種類（シングル、ツイン、スイートなど）。price（宿泊料）は部屋タイプごとに設定される。|
 | Room | もの <br>(対象) | roomNumber | 予約の対象となる具体的な部屋。ホテル（Hotel）に保有され、特定の部屋タイプ（RoomType）に属する。|
 | Hotel | もの <br>(場所) | hotelName | 部屋を保有する全体としての概念。|
