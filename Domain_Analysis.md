@@ -24,7 +24,6 @@ classDiagram
     }
     class Reservation {
         reservationNumber : int
-        roomNumber : int
         stayingDate : date
         status : str
     }
@@ -38,7 +37,7 @@ classDiagram
     }
     class Room {
         roomNumber : int
-        status : str
+        reservedDates : Set[date]
     }
     class Receptionist{
         name : str
@@ -47,9 +46,10 @@ classDiagram
         amount : int
         status : str
     }
+    Hotel "1" *-- "*" RoomType : 
     Hotel "1" *-- "*" Room : 
+    RoomType "1" o-- "*" Room : 
     Hotel "1" *-- "*" Receptionist : 
-    RoomType "1" -- "*" Room : 
     Guest "1" -- "*" Reservation : 予約者
     Reservation "*" -- "*" Room : 対象
     Reservation "1" -- "1" Payment : 紐づく決済
@@ -66,7 +66,7 @@ classDiagram
 | Receptionist | もの <br>(主体) | name | ホテルの受付係。 |
 | Reservation | こと | reservatioNumber, roomNumber, stayingData, status | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
 | RoomType | もの <br>(概念) | typeName, price | 部屋の種類（シングル、ツイン、スイートなど）。price（宿泊料）は部屋タイプごとに設定される。|
-| Room | もの <br>(対象) | roomNumber, status | 予約の対象となる具体的な部屋。ホテル（Hotel）に保有され、特定の部屋タイプ（RoomType）に属する。statusは空室状況などを表す。|
+| Room | もの <br>(対象) | roomNumber, reservedDates | 予約の対象となる具体的な部屋。ホテル（Hotel）に保有され、特定の部屋タイプ（RoomType）に属する。reservedDatesは予約済みの日付を持つ。|
 | Hotel | もの <br>(場所) | hotelName | 部屋を保有する全体としての概念。|
 | Payment | こと <br> | amount, status | 予約（Reservation）に1対1で紐づく決済という事象。金額（amount）、支払状態（status）を管理する。宿泊日、部屋番号は関連から取得する。|
 
@@ -79,7 +79,7 @@ classDiagram
 | Hotel *— Receptionist | 1 対 * | 1つのホテルは複数の受付係を保有する (コンポジション)。|
 | RoomType — Room | 1 対 * | 1つの部屋タイプは、該当する複数の具体的な部屋を保有する 。|
 | Guest — Reservation (予約者) | 1 対 * | 1人の客は複数の予約を行いうるが, 1つの予約は1人の客に帰属する。|
-| Reservation — Room (対象) | 1 対 * | 1つの予約は1つ以上の部屋を対象とする。1つの部屋は, 宿泊日が異なれば複数の予約の対象となりうる。|
+| Reservation — Room (対象) | * 対 * | 1つの予約は1つ以上の部屋を対象とする。1つの部屋は, 宿泊日が異なれば複数の予約の対象となりうる。|
 | Reservation -- Payment (紐づく決済) | 1 対 1 | 1つの予約に対して、決済は必ず1つだけ一意に紐づく。。|
 
 ## オブジェクト図
