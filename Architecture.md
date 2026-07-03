@@ -175,7 +175,7 @@ stateDiagram-v2
 | Intent Router | ユーザーのテキスト（「予約したい」など）を判別し、SessionManagerのステータスを初期化し、対応するControlを呼び出す。 |
 
 - 処理フロー例
-1. ーザー「予約したい」 -> Webhookが受信。
+1. ユーザー「予約したい」 -> Webhookが受信。
 2. Routerが意図を「予約開始」と解釈。SessionManagerの状態を AWAITING_DATE に設定。
 3. ChatInterfaceが「宿泊日を入力してください」と返信。
 4. ユーザー「2026/07/01」 -> Webhookが受信。
