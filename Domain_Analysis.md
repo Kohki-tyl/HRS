@@ -37,7 +37,6 @@ classDiagram
     }
     class Room {
         roomNumber : int
-        reservedDates : Set[date]
     }
     class Receptionist{
         name : str
@@ -64,9 +63,9 @@ classDiagram
 | --- | --- | --- | --- |
 | Guest | もの <br>(主体) | name | 予約を行う客。 |
 | Receptionist | もの <br>(主体) | name | ホテルの受付係。 |
-| Reservation | こと | reservatioNumber, roomNumber, stayingData, status | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
-| RoomType | もの <br>(概念) | typeName, price | 部屋の種類（シングル、ツイン、スイートなど）。price（宿泊料）は部屋タイプごとに設定される。|
-| Room | もの <br>(対象) | roomNumber, reservedDates | 予約の対象となる具体的な部屋。ホテル（Hotel）に保有され、特定の部屋タイプ（RoomType）に属する。reservedDatesは予約済みの日付を持つ。|
+| Reservation | こと | reservationNumber, stayingDate, status | 客と部屋を結ぶ予約という事象。連泊なしのため日付は宿泊日 (チェックイン日) 1つで足りる。|
+| RoomType | もの <br>(概念) | typeName, price, totalRooms | 部屋の種類（シングル、ツイン、スイートなど）。price（宿泊料）は部屋タイプごとに設定される。totalRoomsは各部屋タイプのもつ部屋数。|
+| Room | もの <br>(対象) | roomNumber | 予約の対象となる具体的な部屋。ホテル（Hotel）に保有され、特定の部屋タイプ（RoomType）に属する。|
 | Hotel | もの <br>(場所) | hotelName | 部屋を保有する全体としての概念。|
 | Payment | こと <br> | amount, status | 予約（Reservation）に1対1で紐づく決済という事象。金額（amount）、支払状態（status）を管理する。宿泊日、部屋番号は関連から取得する。|
 
@@ -99,8 +98,8 @@ flowchart TB
     RV1["Reservation1 : Reservation<br/>reservationNumber = 012345<br/>stayingDate = 2026/07/01<br/>status = &quot;Confirmed&quot;" ]
     RV2["Reservation2 : Reservation<br/>reservationNumber = 012346<br/>stayingDate = 2026/07/04<br/>status = &quot;Confirmed&quot;"]
     
-    R1["Room101 : Room<br/>roomNumber = 101<br/>status = &quot;Occupied&quot;"]
-    R2["Room1102 : Room<br/>roomNumber = 1102<br/>status = &quot;Occupied&quot;"]
+    R1["Room101 : Room<br/>roomNumber = 101"]
+    R2["Room1102 : Room<br/>roomNumber = 1102"]
 
     G1 ---|予約者| RV1
     G2 ---|予約者| RV2
