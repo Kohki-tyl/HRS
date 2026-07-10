@@ -20,7 +20,7 @@
 
 | 種別 | クラス | 役割 |
 | --- | --- | --- |
-| バウンダリ | ChatInterface | 利用者・受付係とシステムの境界。入力を受け付け、表示・通知を行う。 |
+| バウンダリ | ChatInterface | 客・受付係とシステムの境界。入力を受け付け、表示・通知を行う。 |
 | コントロール | ReservationControl | 「部屋を予約する」の制御。ホテル・部屋タイプへの空室照会、予約の生成を行う。 |
 | コントロール | CheckInControl | 「チェックインする」の制御。予約オブジェクトに対してチェックイン処理を委譲する。 |
 | コントロール | CheckOutControl | 「チェックアウトする」の制御。予約オブジェクトに対して決済・チェックアウト処理を委譲する。 |
@@ -43,7 +43,7 @@
 
 ```mermaid
 sequenceDiagram
-    actor U as 利用者
+    actor U as 客
     participant UI as : Chat_Interface
     participant C as : Reservation_Control
     participant H as : Hotel
@@ -74,7 +74,7 @@ sequenceDiagram
         RT->>RM: 4.1.1.1: assign(stayingDate)
     end
     
-    C->>RS: 4.2: createReservation(stayingDate, typeOfRoom)
+    C->>RS: 4.2: <<create>>(stayingDate, typeOfRoom)
     C->>UI: 4.3: notifyReservationNumber()
 ```
 補足: コントローラは Hotel に空室確認と部屋の確保を依頼する。Hotel は RoomType に処理を委譲し、RoomType は自身の在庫を減らしつつ、具体的な Room のステータスを更新する (4.1.1.1)。その後、コントローラが予約オブジェクトを生成する (4.2)。
@@ -83,7 +83,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    actor U as 利用者
+    actor U as 客
     actor R as 受付係
     participant UI as : Chat_Interface
     participant C as : CheckIn_Control
@@ -123,7 +123,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    actor U as 利用者
+    actor U as 客
     actor R as 受付係
     participant UI as : Chat_Interface
     participant C as : CheckOut_Control
@@ -172,9 +172,17 @@ classDiagram
         notifyRoomDetail()
         notifyReservationNumber()
         notifyPrice()
-        showPrice()
         notifyCompletion()
         notifyError()
+        selectRoomType()
+        askToConfirm()
+        inputCheckIn()
+        inputCheckOut()
+        notifyRoomNumber()
+        notifyReservationDetail()
+        confirmDetail()
+        showPrice()
+        showRoomNumber()
     }
     class ReservationControl {
         <<control>>
@@ -241,7 +249,7 @@ classDiagram
     Reservation "*" -- "*" Room : 対象
     Reservation "1" -- "1" Payment : 決済
 ```
-注記: 生成（«create»）以外の操作呼び出しによる一時的な依存関係は、図の煩雑化を防ぐため省略している。各クラスのメソッドは、コミュニケーション図においてそのオブジェクトが「受信」したメッセージを基に導出している。
+注記: 生成（«create»）以外の操作呼び出しによる一時的な依存関係は、図の煩雑化を防ぐため省略している。各クラスのメソッドは、コミュニケーション図においてそのオブジェクトが「受信」したメッセージを基に導出している。ただし、システム外部（アクタ）との境界である ChatInterface クラスのみ、「アクタに対する送信」を含めメソッドを導出している。また、クラス図における Guest クラスは、客という「人間」ではなく、システムが保持する「顧客データ」として定義されている。
 ---
 
 ## ドメインモデル・要求モデルへの修正提案
