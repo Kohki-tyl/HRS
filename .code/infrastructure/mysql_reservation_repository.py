@@ -145,7 +145,7 @@ class MySQLReservationRepository(ReservationRepository):
             room = Room(room_number=int(r_row["room_number"]))
             room.assign(staying_date)
             if reservation_status == ReservationStatus.CHECKED_IN:
-                room.mark_using(staying_date)
+                room.mark_using()
             rooms.append(room)
 
         return Reservation(
