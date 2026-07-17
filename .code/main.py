@@ -8,7 +8,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from domain import Hotel, RoomType, Room
 from infrastructure import MySQLReservationRepository
 from application import ReservationControl, CheckInControl, CheckOutControl
-from ui import SessionManager, ChatInterface
+from ui import SessionManager, ChatInterface, FrontDeskTerminal
 
 app = FastAPI()
 
@@ -41,8 +41,8 @@ repository = MySQLReservationRepository(db_config)
 rooms_standard = [Room(room_number=101), Room(room_number=102)]
 rooms_suite = [Room(room_number=201)]
 room_types = [
-    RoomType(type_name="Standard", price=10000, total_rooms=2, rooms=rooms_standard),
-    RoomType(type_name="Suite", price=50000, total_rooms=1, rooms=rooms_suite)
+    RoomType(type_name="Standard", price=10000, rooms=rooms_standard),
+    RoomType(type_name="Suite", price=50000, rooms=rooms_suite)
 ]
 hotel = Hotel(hotel_name="Grand Hotel", room_types=room_types)
 
@@ -52,8 +52,10 @@ ci_ctrl = CheckInControl(repository)
 co_ctrl = CheckOutControl(repository)
 
 # --- プレゼンテーション層 (UI層) ---
+# 予約は利用者が LINE で、チェックイン・チェックアウトは受付係がフロント端末で行う
 session_manager = SessionManager()
-chat_interface = ChatInterface(res_ctrl, ci_ctrl, co_ctrl, session_manager)
+chat_interface = ChatInterface(res_ctrl, session_manager)
+front_desk = FrontDeskTerminal(ci_ctrl, co_ctrl)
 
 
 # ==========================================
@@ -88,3 +90,28 @@ def handle_message(event):
         event.reply_token,
         TextSendMessage(text=reply_text)
     )
+
+
+# ==========================================
+# 4. フロント端末 エンドポイント（受付係の操作）
+# ==========================================
+
+@app.post("/front/check-in/search")
+async def front_search_reservation(reservation_number: str):
+    """受付係が予約番号を入力し、予約内容を照会する"""
+    return {"message": front_desk.input_reservation_number(reservation_number)}
+
+@app.post("/front/check-in/confirm")
+async def front_confirm_check_in(reservation_number: str):
+    """受付係が内容確認後、チェックインを確定する"""
+    return {"message": front_desk.input_check_in(reservation_number)}
+
+@app.post("/front/check-out/search")
+async def front_search_information(room_number: str):
+    """受付係が部屋番号を入力し、請求額を照会する"""
+    return {"message": front_desk.input_room_number(room_number)}
+
+@app.post("/front/check-out/confirm")
+async def front_confirm_check_out(room_number: str):
+    """受付係が支払い受領後、チェックアウトを確定する"""
+    return {"message": front_desk.input_check_out(room_number)}

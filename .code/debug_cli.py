@@ -1,4 +1,3 @@
-import random
 from datetime import datetime
 from typing import Optional
 
@@ -35,8 +34,8 @@ def setup_system():
     rooms_standard = [Room(room_number=101), Room(room_number=102)]
     rooms_suite = [Room(room_number=201)]
     room_types = [
-        RoomType(type_name="Standard", price=10000, total_rooms=2, rooms=rooms_standard),
-        RoomType(type_name="Suite", price=50000, total_rooms=1, rooms=rooms_suite)
+        RoomType(type_name="Standard", price=10000, rooms=rooms_standard),
+        RoomType(type_name="Suite", price=50000, rooms=rooms_suite)
     ]
     hotel = Hotel(hotel_name="Debug Hotel", room_types=room_types)
 
@@ -77,8 +76,8 @@ def main():
                     continue
                 
                 print("\n--- 空室状況 ---")
-                for type_name, count in stocks.items():
-                    print(f"・{type_name}: 残り {count} 室")
+                for type_name, stock in stocks.items():
+                    print(f"・{type_name}: 残り {stock['count']} 室（1室 {stock['price']}円）")
                 print("----------------")
                 
                 # ユーザーからテキスト入力（カンマ区切り）を受け取る
@@ -91,10 +90,9 @@ def main():
                     requested_rooms[name] = int(count_str)
 
                 guest_name = input("ご予約者名: ")
-                res_num = random.randint(100000, 999999)
-                
-                # アプリケーション層へ一括予約を依頼
-                res = res_ctrl.reserve_rooms(res_num, staying_date, guest_name, requested_rooms)
+
+                # アプリケーション層へ一括予約を依頼（予約番号の採番もアプリケーション層が行う）
+                res = res_ctrl.reserve_rooms(staying_date, guest_name, requested_rooms)
                 
                 print("-" * 20)
                 print(f"【予約完了】 予約番号: {res.reservation_number} / 料金: {res.get_amount()}円")

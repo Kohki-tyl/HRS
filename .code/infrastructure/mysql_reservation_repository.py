@@ -133,7 +133,7 @@ class MySQLReservationRepository(ReservationRepository):
             room = Room(room_number=r_row['room_number'])
             room.assign(staying_date) # 予約されている日として登録
             if reservation_status == ReservationStatus.CHECKED_IN:
-                room.mark_using(staying_date)
+                room.mark_using()
             rooms.append(room)
 
         # 予約オブジェクトの組み立て
