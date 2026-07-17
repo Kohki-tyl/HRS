@@ -51,7 +51,7 @@ def test_save_and_find_by_id():
         "staying_date": date(2026, 7, 1),
         "guest_name": "Taro",
         "payment_amount": 10000,
-        "payment_status": "Unpaid",
+        "payment_status": "Pending",
         "reservation_status": "Created",
     }
     conn = DummyConnection(reservation_row=reservation_row, room_rows=[{"room_number": 101}])
