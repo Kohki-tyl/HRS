@@ -34,7 +34,8 @@ db_config = {
     "password": "password",  # ご自身のMySQLパスワードに変更してください
     "database": "hrs_db"
 }
-repository = MySQLReservationRepository(db_config)
+# import 時に DB へ接続しないよう、スキーマ作成は起動時 (startup) に明示的に行う
+repository = MySQLReservationRepository(db_config, initialize_schema=False)
 
 # --- ドメイン層 (初期データの用意) ---
 # 本来はDBや管理者画面からロードしますが、今回はメモリ上で初期化します
@@ -59,7 +60,17 @@ front_desk = FrontDeskTerminal(ci_ctrl, co_ctrl)
 
 
 # ==========================================
-# 3. Webhook エンドポイント
+# 3. 起動時処理
+# ==========================================
+
+@app.on_event("startup")
+def on_startup():
+    """アプリケーション起動時に一度だけテーブルを用意する"""
+    repository.initialize_schema()
+
+
+# ==========================================
+# 4. Webhook エンドポイント
 # ==========================================
 
 @app.post("/callback")
@@ -93,7 +104,7 @@ def handle_message(event):
 
 
 # ==========================================
-# 4. フロント端末 エンドポイント（受付係の操作）
+# 5. フロント端末 エンドポイント（受付係の操作）
 # ==========================================
 
 @app.post("/front/check-in/search")
