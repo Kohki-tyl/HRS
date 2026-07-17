@@ -1,3 +1,4 @@
+from datetime import date
 from typing import List, Optional
 from domain import Reservation, ReservationRepository, BureaucraticError
 
@@ -17,6 +18,10 @@ class CheckInControl:
         
         if not reservation:
             raise BureaucraticError(f"予約番号 {reservation_number} が見つかりません。")
+        
+        if reservation.staying_date != date.today():
+            raise BureaucraticError(
+                f"予約日の {reservation.staying_date} にならないとチェックイン手続きは行えません。")
         
         # 予約エンティティにチェックイン処理を委譲（内部でRoomのステータス等も変化）
         reservation.mark_checked_in()

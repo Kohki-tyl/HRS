@@ -122,6 +122,10 @@ class Reservation:
         if self.status != ReservationStatus.CREATED:
             raise BureaucraticError("この予約はチェックイン可能な状態ではありません。")
         
+        if self.staying_date != date.today():
+            raise BureaucraticError(
+                f"本日は {date.today()} です。宿泊日（{self.staying_date}）以外はチェックインできません。")
+        
         self.status = ReservationStatus.CHECKED_IN
         for room in self.rooms:
             room.mark_using(self.staying_date)
