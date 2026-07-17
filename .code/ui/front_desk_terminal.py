@@ -1,3 +1,4 @@
+from datetime import date
 import logging
 
 from domain import BureaucraticError, ReservationStatus
@@ -52,6 +53,12 @@ class FrontDeskTerminal:
         if reservation.status != ReservationStatus.CREATED:
             return self._notify_error(
                 f"この予約は現在「{self._status_label(reservation.status)}」のため、チェックインできません。"
+            )
+
+        # 確定操作が業務ルールで弾かれることを、照会の時点で受付係に知らせる
+        if reservation.staying_date != date.today():
+            return self._notify_error(
+                f"この予約の宿泊日は {reservation.staying_date} です。本日はチェックインできません。"
             )
 
         return self._notify_reservation_detail(reservation)
