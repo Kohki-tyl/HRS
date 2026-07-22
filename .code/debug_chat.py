@@ -7,7 +7,7 @@ ChatInterface へ渡す。main.py の handle_message が行っている処理と
 """
 import sys
 
-from application import ReservationControl, restore_hotel_stock
+from application import ReservationControl
 from ui import SessionManager, ChatInterface
 from debug_setup import DB_PATH, build_hotel, build_repository
 
@@ -18,8 +18,7 @@ DEBUG_USER_ID = "debug_line_user"
 def main():
     hotel = build_hotel()
     repository = build_repository()
-    # main.py の startup と同じく、DB から在庫を復元する
-    restored = restore_hotel_stock(hotel, repository)
+    # 空室状況はその都度 DB から判定する（DB引き）ため、起動時の在庫復元は不要
 
     res_ctrl = ReservationControl(repository, hotel)
     session_manager = SessionManager()
@@ -29,7 +28,6 @@ def main():
     print(" HRS 客用チャット（LINE ボット相当 / API 未接続）")
     print("=" * 60)
     print(f" DB      : {DB_PATH}")
-    print(f" 在庫復元: 予約済みの部屋・日付を {restored} 件復元しました")
     print(" 部屋    : Standard 101,102 (10000円) / Suite 201 (50000円)")
     print("-" * 60)
     print(" 「予約」と入力すると予約手続きが始まります。")

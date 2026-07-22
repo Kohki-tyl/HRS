@@ -10,7 +10,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 # 各層のモジュールをインポート
 from domain import Hotel, RoomType, Room, Reservation, Guest, Payment
 from infrastructure import MySQLReservationRepository, MemoryReservationRepository
-from application import ReservationControl, CheckInControl, CheckOutControl, restore_hotel_stock
+from application import ReservationControl, CheckInControl, CheckOutControl
 from ui import SessionManager, ChatInterface, FrontDeskTerminal
 
 app = FastAPI()
@@ -80,7 +80,8 @@ def on_startup():
 
     1. テーブルを用意する
     2. (インメモリDB モード時) デモ用のテスト予約を作成する
-    3. 予約から Hotel の在庫を復元する（再起動による二重予約を防ぐ）
+
+    空室状況はその都度 DB から判定する（DB引き）ため、起動時の在庫復元は不要。
     """
     from datetime import date
 
@@ -139,9 +140,6 @@ def on_startup():
                   f"ゲスト: {test_data['guest_name']}, "
                   f"部屋: {test_data['room_numbers']}")
         print("="*60 + "\n")
-
-    # 予約から Hotel の在庫を復元する（デモ予約・既存予約を空室判定へ反映）
-    restore_hotel_stock(hotel, repository)
 
 
 # ==========================================
