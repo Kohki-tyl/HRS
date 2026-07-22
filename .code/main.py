@@ -10,7 +10,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 # 各層のモジュールをインポート
 from domain import Hotel, RoomType, Room, Reservation, Guest, Payment
 from infrastructure import MySQLReservationRepository, MemoryReservationRepository
-from application import ReservationControl, CheckInControl, CheckOutControl
+from application import ReservationControl, CheckInControl, CheckOutControl, restore_hotel_stock
 from ui import SessionManager, ChatInterface, FrontDeskTerminal
 
 app = FastAPI()
@@ -76,14 +76,17 @@ front_desk = FrontDeskTerminal(ci_ctrl, co_ctrl)
 
 @app.on_event("startup")
 def on_startup():
-    """アプリケーション起動時に初期化・テストデータ作成"""
+    """アプリケーション起動時の初期化・テストデータ作成
+
+    1. テーブルを用意する
+    2. (インメモリDB モード時) デモ用のテスト予約を作成する
+    3. 予約から Hotel の在庫を復元する（再起動による二重予約を防ぐ）
+    """
     from datetime import date
-    from domain import Guest, Payment
-    
+
     repository.initialize_schema()
-    
-    # テスト用データを作成
-    from infrastructure import MemoryReservationRepository
+
+    # テスト用データを作成（インメモリDB モードのときのみ）
     if isinstance(repository, MemoryReservationRepository):
         print("\n" + "="*60)
         print("🔧 インメモリDB モードで実行しています")
@@ -136,6 +139,9 @@ def on_startup():
                   f"ゲスト: {test_data['guest_name']}, "
                   f"部屋: {test_data['room_numbers']}")
         print("="*60 + "\n")
+
+    # 予約から Hotel の在庫を復元する（デモ予約・既存予約を空室判定へ反映）
+    restore_hotel_stock(hotel, repository)
 
 
 # ==========================================

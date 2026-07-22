@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import List, Set
+from typing import List, Optional, Set
 
 class BureaucraticError(Exception):
     """業務ルールに反する操作が行われたことを表すドメイン例外"""
@@ -89,6 +89,14 @@ class Hotel:
         if not room_type:
             raise BureaucraticError(f"「{type_name}」という部屋タイプはありません。")
         return room_type
+
+    def find_room(self, room_number: int) -> Optional[Room]:
+        """部屋番号から自身が保有する Room を返す（無ければ None）"""
+        for room_type in self.room_types:
+            for room in room_type.rooms:
+                if room.room_number == room_number:
+                    return room
+        return None
 
     def allocate_rooms(self, staying_date: date, requested_rooms: dict[str, int]) -> List[Room]:
         assigned_rooms = []

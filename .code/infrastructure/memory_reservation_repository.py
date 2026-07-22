@@ -1,5 +1,5 @@
-from typing import Dict, Optional
-from domain.models import Reservation
+from typing import Dict, List, Optional
+from domain.models import Reservation, ReservationStatus
 from domain.repository_interface import ReservationRepository
 
 
@@ -39,6 +39,10 @@ class MemoryReservationRepository(ReservationRepository):
         if reservation_number is None:
             return None
         return self.reservations.get(reservation_number)
+
+    def find_active_reservations(self) -> List[Reservation]:
+        """キャンセル以外の予約をすべて返す（在庫復元用）"""
+        return [r for r in self.reservations.values() if r.status != ReservationStatus.CANCELLED]
 
     def list_all(self) -> list[Reservation]:
         """すべての予約情報を返す（デバッグ用）"""

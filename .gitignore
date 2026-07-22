@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+venv/
+.venv/
+
+# デバッグ用の SQLite ファイル
+.code/hrs_debug.db
+*.db-journal
