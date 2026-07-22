@@ -1,8 +1,6 @@
 """SQLiteReservationRepository のテスト
 
-DummyCursor と違い、実際に SQL を発行して結果を検証する。
-MySQLReservationRepository と同じ ReservationRepository 契約を満たすため、
-ここで確認した保存・検索・復元の振る舞いは MySQL 版の期待仕様でもある。
+実際に SQL を発行して保存・検索・復元の振る舞いを検証する。
 """
 from datetime import date
 
