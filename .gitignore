@@ -5,6 +5,9 @@ __pycache__/
 .pytest_cache/
 venv/
 .venv/
+.env
+.env.*
+!.env.example
 
 # デバッグ用の SQLite ファイル
 .code/hrs_debug.db

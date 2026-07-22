@@ -3,9 +3,16 @@ from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from linebot import LineBotApi, WebhookHandler
-from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from linebot.v3 import WebhookHandler
+from linebot.v3.exceptions import InvalidSignatureError
+from linebot.v3.messaging import (
+    ApiClient,
+    Configuration,
+    MessagingApi,
+    ReplyMessageRequest,
+    TextMessage,
+)
+from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 # 各層のモジュールをインポート
 from domain import Hotel, RoomType, Room, Reservation, Guest, Payment
@@ -22,12 +29,17 @@ app = FastAPI()
 ui_static_path = Path(__file__).parent / "ui" / "static"
 if ui_static_path.exists():
     app.mount("/static", StaticFiles(directory=str(ui_static_path)), name="static")
-# ※実際の運用では環境変数から取得します
-LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "YOUR_CHANNEL_ACCESS_TOKEN")
-LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET", "YOUR_CHANNEL_SECRET")
+# LINE の秘密情報は必ず環境変数から取得する。
+# 未設定でもフロントデスク画面は起動できるが、LINE Webhook は 503 を返す。
+LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "").strip()
+LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET", "").strip()
+LINE_CONFIGURED = bool(LINE_CHANNEL_ACCESS_TOKEN and LINE_CHANNEL_SECRET)
 
-line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
-handler = WebhookHandler(LINE_CHANNEL_SECRET)
+# SDK オブジェクトはデコレータ登録に必要なため生成するが、未設定時は callback で遮断する。
+line_configuration = Configuration(
+    access_token=LINE_CHANNEL_ACCESS_TOKEN or "LINE_NOT_CONFIGURED"
+)
+handler = WebhookHandler(LINE_CHANNEL_SECRET or "LINE_NOT_CONFIGURED")
 
 
 # ==========================================
@@ -159,10 +171,27 @@ async def get_front_desk_page():
 # 4. Webhook エンドポイント
 # ==========================================
 
+@app.get("/health")
+async def health():
+    """稼働状態を返す。秘密情報そのものは返さない。"""
+    return {
+        "status": "ok",
+        "line_configured": LINE_CONFIGURED,
+        "line_webhook_path": "/callback",
+    }
+
 @app.post("/callback")
 async def callback(request: Request):
     """LINEプラットフォームからのWebhookを受信するエンドポイント"""
+    if not LINE_CONFIGURED:
+        raise HTTPException(
+            status_code=503,
+            detail="LINE_CHANNEL_ACCESS_TOKEN と LINE_CHANNEL_SECRET を設定してください。",
+        )
+
     signature = request.headers.get("X-Line-Signature")
+    if not signature:
+        raise HTTPException(status_code=400, detail="X-Line-Signature header is required.")
     body = await request.body()
     
     try:
@@ -173,7 +202,7 @@ async def callback(request: Request):
     
     return "OK"
 
-@handler.add(MessageEvent, message=TextMessage)
+@handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     """テキストメッセージを受信した際の処理"""
     user_id = event.source.user_id
@@ -183,10 +212,13 @@ def handle_message(event):
     reply_text = chat_interface.handle_message(user_id, user_text)
     
     # LINEユーザーへ結果を返信
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply_text)
-    )
+    with ApiClient(line_configuration) as api_client:
+        MessagingApi(api_client).reply_message(
+            ReplyMessageRequest(
+                reply_token=event.reply_token,
+                messages=[TextMessage(text=reply_text)],
+            )
+        )
 
 
 # ==========================================
