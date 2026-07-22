@@ -167,3 +167,7 @@ class Reservation:
 
     def get_room_numbers(self) -> List[int]:
         return [room.get_room_number() for room in self.rooms]
+
+    def is_checked_in(self) -> bool:
+        """チェックイン状態か確認"""
+        return self.status == ReservationStatus.CHECKED_IN

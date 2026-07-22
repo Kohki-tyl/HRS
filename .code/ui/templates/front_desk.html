@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Front Desk - HRS System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <header class="header">
+            <h1>Hotel Reservation System</h1>
+            <p class="subtitle">Front Desk Terminal</p>
+        </header>
+
+        <!-- タブ切り替え -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="checkin-tab">
+                CHECK IN
+            </button>
+            <button class="tab-btn" data-tab="checkout-tab">
+                CHECK OUT
+            </button>
+            <button class="tab-btn" data-tab="reservations-tab">
+                RESERVATIONS
+            </button>
+        </div>
+
+        <!-- CHECK IN -->
+        <div id="checkin-tab" class="tab-content active">
+            <div class="card">
+                <h2>CHECK IN</h2>
+                
+                <!-- 検索フェーズ -->
+                <div id="checkin-search" class="phase active">
+                    <h3>Enter Reservation Number</h3>
+                    <p class="phase-description">
+                        Enter the reservation number provided by the guest.
+                    </p>
+                    <div class="form-group">
+                        <label for="checkin-number">Reservation Number</label>
+                        <input 
+                            type="text" 
+                            id="checkin-number" 
+                            class="input-number" 
+                            placeholder="e.g., 100001"
+                            maxlength="6"
+                        >
+                        <button class="btn btn-primary" onclick="checkInSearchReservation()">
+                            Search
+                        </button>
+                    </div>
+                    <div id="checkin-search-message" class="message"></div>
+                </div>
+
+                <!-- 確認フェーズ -->
+                <div id="checkin-confirm" class="phase">
+                    <div id="checkin-detail" class="detail-card"></div>
+                    <div class="button-group">
+                        <button class="btn btn-success" onclick="checkInConfirm()">
+                            CONFIRM CHECK IN
+                        </button>
+                        <button class="btn btn-secondary" onclick="checkInReset()">
+                            BACK
+                        </button>
+                    </div>
+                    <div id="checkin-confirm-message" class="message"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHECK OUT -->
+        <div id="checkout-tab" class="tab-content">
+            <div class="card">
+                <h2>CHECK OUT</h2>
+                
+                <!-- 検索フェーズ -->
+                <div id="checkout-search" class="phase active">
+                    <h3>Enter Room Number</h3>
+                    <p class="phase-description">
+                        Enter the room number of the guest checking out.
+                    </p>
+                    <div class="form-group">
+                        <label for="checkout-number">Room Number</label>
+                        <input 
+                            type="text" 
+                            id="checkout-number" 
+                            class="input-number" 
+                            placeholder="e.g., 101"
+                            maxlength="4"
+                        >
+                        <button class="btn btn-primary" onclick="checkOutSearchInformation()">
+                            Search
+                        </button>
+                    </div>
+                    <div id="checkout-search-message" class="message"></div>
+                </div>
+
+                <!-- 確認フェーズ -->
+                <div id="checkout-confirm" class="phase">
+                    <div id="checkout-detail" class="detail-card"></div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="payment-confirmed" class="checkbox">
+                            Payment Confirmed
+                        </label>
+                    </div>
+                    <div class="button-group">
+                        <button 
+                            class="btn btn-success" 
+                            id="checkout-confirm-btn"
+                            onclick="checkOutConfirm()"
+                            disabled
+                        >
+                            CONFIRM CHECK OUT
+                        </button>
+                        <button class="btn btn-secondary" onclick="checkOutReset()">
+                            BACK
+                        </button>
+                    </div>
+                    <div id="checkout-confirm-message" class="message"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RESERVATIONS -->
+        <div id="reservations-tab" class="tab-content">
+            <div class="card">
+                <h2>RESERVATION LIST</h2>
+                <div class="reservations-controls">
+                    <button class="btn btn-primary" onclick="loadReservations()">
+                        REFRESH
+                    </button>
+                </div>
+                <div id="reservations-list" class="reservations-list">
+                    <p class="placeholder">Click REFRESH to load reservations</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ローディング表示 -->
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
