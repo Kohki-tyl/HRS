@@ -7,7 +7,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 # 各層のモジュールをインポート
 from domain import Hotel, RoomType, Room
 from infrastructure import MySQLReservationRepository
-from application import ReservationControl, CheckInControl, CheckOutControl
+from application import ReservationControl, CheckInControl, CheckOutControl, restore_hotel_stock
 from ui import SessionManager, ChatInterface, FrontDeskTerminal
 
 app = FastAPI()
@@ -65,8 +65,13 @@ front_desk = FrontDeskTerminal(ci_ctrl, co_ctrl)
 
 @app.on_event("startup")
 def on_startup():
-    """アプリケーション起動時に一度だけテーブルを用意する"""
+    """アプリケーション起動時の初期化
+
+    1. テーブルを用意する
+    2. DB に残る予約から Hotel の在庫を復元する（再起動による二重予約を防ぐ）
+    """
     repository.initialize_schema()
+    restore_hotel_stock(hotel, repository)
 
 
 # ==========================================
