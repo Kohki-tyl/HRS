@@ -9,6 +9,7 @@ venv/
 .env.*
 !.env.example
 
-# デバッグ用の SQLite ファイル
+# SQLite データファイル（本体・デバッグ用）
+.code/hrs.db
 .code/hrs_debug.db
 *.db-journal

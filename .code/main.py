@@ -16,7 +16,7 @@ from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 # 各層のモジュールをインポート
 from domain import Hotel, RoomType, Room, Reservation, Guest, Payment
-from infrastructure import MySQLReservationRepository, MemoryReservationRepository
+from infrastructure import SQLiteReservationRepository
 from application import ReservationControl, CheckInControl, CheckOutControl
 from ui import SessionManager, ChatInterface, FrontDeskTerminal
 
@@ -47,18 +47,9 @@ handler = WebhookHandler(LINE_CHANNEL_SECRET or "LINE_NOT_CONFIGURED")
 # ==========================================
 
 # --- インフラストラクチャ層 ---
-# テスト検証用: インメモリDB を使用
-# 本番運用時は MySQLReservationRepository に切り替えてください
-repository = MemoryReservationRepository()
-
-# MySQL 版（本番運用用）
-# db_config = {
-#     "host": "localhost",
-#     "user": "root",
-#     "password": "password",
-#     "database": "hrs_db"
-# }
-# repository = MySQLReservationRepository(db_config, initialize_schema=False)
+# 永続化は SQLite に統一する。DB ファイルのパスは環境変数 HRS_DB_PATH で上書き可能。
+db_path = os.environ.get("HRS_DB_PATH", str(Path(__file__).parent / "hrs.db"))
+repository = SQLiteReservationRepository(db_path)
 
 # --- ドメイン層 (初期データの用意) ---
 # 本来はDBや管理者画面からロードしますが、今回はメモリ上で初期化します
@@ -91,7 +82,7 @@ def on_startup():
     """アプリケーション起動時の初期化・テストデータ作成
 
     1. テーブルを用意する
-    2. (インメモリDB モード時) デモ用のテスト予約を作成する
+    2. DB が空のときだけ、デモ用のテスト予約を作成する
 
     空室状況はその都度 DB から判定する（DB引き）ため、起動時の在庫復元は不要。
     """
@@ -99,12 +90,13 @@ def on_startup():
 
     repository.initialize_schema()
 
-    # テスト用データを作成（インメモリDB モードのときのみ）
-    if isinstance(repository, MemoryReservationRepository):
+    # DB が空のとき（初回起動）だけデモデータを投入する。
+    # 既存データがあれば投入しない（再起動で重複させない）。
+    if not repository.find_all():
         print("\n" + "="*60)
-        print("🔧 インメモリDB モードで実行しています")
+        print("🔧 デモ用のテスト予約を投入します")
         print("="*60)
-        
+
         # テスト用予約データを作成
         test_reservations = [
             {
@@ -249,7 +241,7 @@ async def front_confirm_check_out(room_number: str):
 async def get_reservations_list():
     """予約一覧を取得するエンドポイント"""
     try:
-        reservations = repository.list_all()
+        reservations = repository.find_all()
         
         # 予約データをJSON形式に変換
         reservations_data = []

@@ -185,6 +185,22 @@ class SQLiteReservationRepository(ReservationRepository):
         finally:
             self._release(conn)
 
+    def find_all(self) -> List[Reservation]:
+        """すべての予約を復元して返す（予約一覧表示用）"""
+        conn = self._get_connection()
+        try:
+            res_rows = conn.execute("SELECT * FROM reservations").fetchall()
+            reservations = []
+            for res_row in res_rows:
+                room_rows = conn.execute(
+                    "SELECT room_number FROM reservation_rooms WHERE reservation_number = ?",
+                    (res_row["reservation_number"],),
+                ).fetchall()
+                reservations.append(self._reconstruct_reservation(res_row, room_rows))
+            return reservations
+        finally:
+            self._release(conn)
+
     def _reconstruct_reservation(self, res_row, room_rows) -> Reservation:
         """DBの取得結果からドメインオブジェクト(Entity)を再構築する内部ヘルパー"""
         guest = Guest(name=res_row["guest_name"])

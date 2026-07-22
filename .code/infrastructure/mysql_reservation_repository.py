@@ -153,6 +153,26 @@ class MySQLReservationRepository(ReservationRepository):
             cursor.close()
             conn.close()
 
+    def find_all(self) -> List[Reservation]:
+        """すべての予約を復元して返す（予約一覧表示用）"""
+        conn = self._get_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("SELECT * FROM reservations")
+            res_rows = cursor.fetchall() or []
+            reservations = []
+            for res_row in res_rows:
+                cursor.execute(
+                    "SELECT room_number FROM reservation_rooms WHERE reservation_number = %s",
+                    (res_row["reservation_number"],),
+                )
+                room_rows = cursor.fetchall() or []
+                reservations.append(self._reconstruct_reservation(res_row, room_rows))
+            return reservations
+        finally:
+            cursor.close()
+            conn.close()
+
     def _reconstruct_reservation(self, res_row: dict, room_rows: List[dict]) -> Reservation:
         """DBの取得結果(辞書)からドメインオブジェクト(Entity)を再構築する内部ヘルパー"""
         guest = Guest(name=res_row["guest_name"])
