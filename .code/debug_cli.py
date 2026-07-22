@@ -33,6 +33,9 @@ class InMemoryReservationRepository(ReservationRepository):
             if res.staying_date == staying_date and res.status != ReservationStatus.CANCELLED
         ]
 
+    def find_all(self) -> list[Reservation]:
+        return list(self.db.values())
+
 # ==========================================
 # 2. 初期セットアップ (DI)
 # ==========================================

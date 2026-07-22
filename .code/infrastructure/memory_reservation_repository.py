@@ -48,8 +48,8 @@ class MemoryReservationRepository(ReservationRepository):
             if r.staying_date == staying_date and r.status != ReservationStatus.CANCELLED
         ]
 
-    def list_all(self) -> list[Reservation]:
-        """すべての予約情報を返す（デバッグ用）"""
+    def find_all(self) -> List[Reservation]:
+        """すべての予約情報を返す（予約一覧表示用）"""
         return list(self.reservations.values())
 
     def clear(self) -> None:

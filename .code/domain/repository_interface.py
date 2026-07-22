@@ -29,3 +29,8 @@ class ReservationRepository(ABC):
         Room 側は在庫状態を持たず、DB の予約が唯一の在庫の真実となる。
         """
         pass
+
+    @abstractmethod
+    def find_all(self) -> List[Reservation]:
+        """すべての予約を返す（フロントデスクの予約一覧表示用）"""
+        pass
