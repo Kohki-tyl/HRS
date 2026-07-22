@@ -27,8 +27,11 @@ class InMemoryReservationRepository(ReservationRepository):
                 return res
         return None
 
-    def find_active_reservations(self) -> list[Reservation]:
-        return [res for res in self.db.values() if res.status != ReservationStatus.CANCELLED]
+    def find_by_staying_date(self, staying_date) -> list[Reservation]:
+        return [
+            res for res in self.db.values()
+            if res.staying_date == staying_date and res.status != ReservationStatus.CANCELLED
+        ]
 
 # ==========================================
 # 2. 初期セットアップ (DI)

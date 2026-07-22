@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Dict, List, Optional
 from domain.models import Reservation, ReservationStatus
 from domain.repository_interface import ReservationRepository
@@ -40,9 +41,12 @@ class MemoryReservationRepository(ReservationRepository):
             return None
         return self.reservations.get(reservation_number)
 
-    def find_active_reservations(self) -> List[Reservation]:
-        """キャンセル以外の予約をすべて返す（在庫復元用）"""
-        return [r for r in self.reservations.values() if r.status != ReservationStatus.CANCELLED]
+    def find_by_staying_date(self, staying_date: date) -> List[Reservation]:
+        """指定した宿泊日の、キャンセル以外の予約を返す（在庫判定用）"""
+        return [
+            r for r in self.reservations.values()
+            if r.staying_date == staying_date and r.status != ReservationStatus.CANCELLED
+        ]
 
     def list_all(self) -> list[Reservation]:
         """すべての予約情報を返す（デバッグ用）"""

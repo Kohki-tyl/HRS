@@ -129,14 +129,14 @@ class MySQLReservationRepository(ReservationRepository):
             cursor.close()
             conn.close()
 
-    def find_active_reservations(self) -> List[Reservation]:
-        """キャンセル以外の予約をすべて復元して返す（在庫復元用）"""
+    def find_by_staying_date(self, staying_date: date) -> List[Reservation]:
+        """指定した宿泊日の、キャンセル以外の予約をすべて復元して返す（在庫判定用）"""
         conn = self._get_connection()
         cursor = conn.cursor(dictionary=True)
         try:
             cursor.execute(
-                "SELECT * FROM reservations WHERE reservation_status != %s",
-                (ReservationStatus.CANCELLED.value,),
+                "SELECT * FROM reservations WHERE staying_date = %s AND reservation_status != %s",
+                (staying_date, ReservationStatus.CANCELLED.value),
             )
             res_rows = cursor.fetchall() or []
 

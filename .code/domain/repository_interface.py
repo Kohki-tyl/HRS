@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import date
 from typing import Optional, List
 from domain.models import Reservation
 
@@ -21,11 +22,10 @@ class ReservationRepository(ABC):
         pass
 
     @abstractmethod
-    def find_active_reservations(self) -> List[Reservation]:
-        """部屋・日付を押さえている予約（キャンセル以外）をすべて返す
+    def find_by_staying_date(self, staying_date: date) -> List[Reservation]:
+        """指定した宿泊日に部屋を押さえている予約（キャンセル以外）を返す
 
-        Room の在庫 (reserved_dates) は永続化されないため、起動時に
-        Hotel の在庫を DB から復元する用途で使う。キャンセル済み
-        (CANCELLED) は該当日を解放しているため除外する。
+        在庫（空室状況）は、この結果から「予約済みの部屋番号」を導出して判定する。
+        Room 側は在庫状態を持たず、DB の予約が唯一の在庫の真実となる。
         """
         pass

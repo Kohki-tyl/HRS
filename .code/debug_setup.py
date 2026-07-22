@@ -2,7 +2,7 @@
 
 客のチャット (debug_chat.py) とフロント端末 (debug_front.py) を
 別々のターミナルで動かすため、両者が同じ SQLite ファイルを共有する。
-在庫の復元には本番と同じ application.restore_hotel_stock を使う。
+空室状況はその都度 DB から判定する（DB引き）。
 """
 from pathlib import Path
 
