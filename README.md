@@ -34,3 +34,14 @@ cd .code
 $env:ADMIN_PASSWORD = "your_password"
 uvicorn main:app --reload
 ```
+
+## 自動テスト
+
+依存関係をインストール後、次のコマンドでテストを実行できます。
+
+```powershell
+cd .code
+python -m pytest tests -q
+```
+
+将来対応する項目は [TODO.md](TODO.md) にまとめています。
