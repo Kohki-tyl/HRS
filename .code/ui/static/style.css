@@ -104,21 +104,51 @@ body {
 .main-content { flex: 1; padding: 32px; overflow-x: auto; }
 .view { display: none; }
 .view.active { display: block; }
-.view-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.view-header { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
 .view-header h2 { color: var(--primary-color); font-size: 1.5rem; }
+.view-desc { color: var(--text-light); font-size: 0.88rem; margin-bottom: 16px; }
+.today-badge { background: var(--accent-color); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
+.today-badge b { font-variant-numeric: tabular-nums; }
+.tnum { font-variant-numeric: tabular-nums; }
 
-/* ===== フィルタバー ===== */
-.filter-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-.filter-bar .input-text { width: auto; flex: 1; min-width: 160px; }
+/* ===== ツールバー（検索＋更新） ===== */
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+.search-group { display: flex; flex: 1; min-width: 240px; max-width: 460px; }
+.search-select {
+    border: 1px solid var(--border-color); border-right: none;
+    border-radius: 8px 0 0 8px; background: var(--light-bg); color: var(--text-color);
+    padding: 0 12px; font-size: 0.9rem; cursor: pointer;
+}
+.search-select:focus { outline: none; border-color: var(--accent-color); }
+.search-input {
+    flex: 1; padding: 10px 12px; border: 1px solid var(--border-color);
+    border-radius: 0 8px 8px 0; font-size: 0.95rem; min-width: 0;
+}
+.search-input:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(52,152,219,0.15); }
+.icon-btn {
+    width: 42px; height: 42px; flex-shrink: 0; display: grid; place-items: center;
+    border: 1px solid var(--border-color); border-radius: 8px; background: #fff; color: var(--text-light);
+    cursor: pointer; transition: var(--transition);
+}
+.icon-btn:hover { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
+.icon-btn:focus-visible { outline: 3px solid var(--accent-color); outline-offset: 2px; }
 
 /* ===== テーブル ===== */
 .table-wrap { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); overflow: hidden; }
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--light-bg); }
 .data-table th { background: var(--light-bg); font-size: 0.85rem; color: var(--text-light); text-transform: none; }
+.data-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.data-table th.sortable:hover { color: var(--accent-color); }
+.sort-arrow { margin-left: 4px; color: var(--accent-color); font-size: 0.75rem; }
 .data-table tbody tr:last-child td { border-bottom: none; }
 .clickable-row { cursor: pointer; transition: var(--transition); }
 .clickable-row:hover { background: #f0f7fc; }
+.action-col { width: 1%; }
+.action-cell { text-align: right; white-space: nowrap; }
+.btn-sm { padding: 6px 14px; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; color: #fff; cursor: pointer; transition: var(--transition); }
+.btn-sm:hover { filter: brightness(1.05); }
+.btn-sm.btn-success { background: var(--success-color); }
 .placeholder { padding: 40px; text-align: center; color: var(--text-light); }
 
 /* ===== ステータスバッジ ===== */
@@ -142,6 +172,19 @@ body {
 .detail-value { font-weight: 600; text-align: right; }
 .detail-value.highlight { color: var(--accent-color); font-size: 1.1rem; }
 .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+
+.modal-sm { max-width: 400px; }
+.confirm-text { padding: 8px 2px 4px; font-size: 0.98rem; line-height: 1.7; }
+
+/* ===== トースト ===== */
+.toast {
+    position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%);
+    background: var(--primary-color); color: #fff; padding: 13px 24px; border-radius: 8px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.25); z-index: 250; font-weight: 600; font-size: 0.92rem;
+    max-width: 90vw;
+}
+.toast.success { background: var(--success-color); }
+.toast.error { background: var(--danger-color); }
 
 /* ===== ローディング ===== */
 .loading { position: fixed; inset: 0; background: rgba(255,255,255,0.7); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200; }
