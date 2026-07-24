@@ -1,6 +1,6 @@
 HRS/ code/
 │
-├── main.py                         # 本番用エントリーポイント（FastAPI起動、LINE Webhook受付、フロント端末API、各層の結合/DI）
+├── main.py                         # 本番用エントリーポイント（FastAPI起動、LINE Webhook受付、フロント端末API、各層の結合/DI。永続化はSQLite）
 ├── debug_cli.py                    # デバッグ用エントリーポイント（ターミナル上でCUI操作、インメモリDBを使用）
 │
 ├── ui/                             # プレゼンテーション層（2チャネルのユーザーインタフェース）
@@ -23,4 +23,4 @@ HRS/ code/
 │
 └── infrastructure/                 # インフラストラクチャ層（技術的詳細・データアクセス）
     ├── __init__.py
-    └── mysql_reservation_repository.py # MySQLを使用してデータを保存・復元する具象クラス
+    └── sqlite_reservation_repository.py # SQLiteを使用してデータを保存・復元する具象クラス（永続化はこれに統一）

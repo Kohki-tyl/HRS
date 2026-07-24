@@ -14,7 +14,7 @@ from domain import (
     PaymentStatus,
 )
 
-# MySQL 版 (schema.sql) と同じ構造を SQLite の型で表現したもの
+# 予約本体と、予約に紐づく部屋割り当てのテーブル定義
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS reservations (
     reservation_number INTEGER PRIMARY KEY,
@@ -37,10 +37,8 @@ CREATE TABLE IF NOT EXISTS reservation_rooms (
 class SQLiteReservationRepository(ReservationRepository):
     """SQLite を使用して予約データを永続化するリポジトリの実装
 
-    MySQL を用意せずに、テストやローカルの複数プロセス実行で
-    MySQLReservationRepository と同じ契約 (ReservationRepository) を
-    満たす具象を使うためのもの。上位層のコードは一切変更せずに
-    差し替えられる（依存関係逆転の原則の確認になる）。
+    永続化はこの実装に統一している。ReservationRepository の契約を満たすため、
+    上位層のコードは一切変更せずに差し替えられる（依存関係逆転の原則）。
 
     db_path に ":memory:" を渡すと、その接続限りのインメモリ DB になる
     （テストで1接続を保持する用途）。
