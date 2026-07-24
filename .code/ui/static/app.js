@@ -55,10 +55,8 @@ function nowLabel() {
 }
 let clockTimer = null;
 function updateClock() {
-    const label = nowLabel();
-    const ci = el('ci-today'), co = el('co-today');
-    if (ci) ci.textContent = label;
-    if (co) co.textContent = label;
+    const clock = el('sidebar-clock');
+    if (clock) clock.textContent = nowLabel();
 }
 function getToken() { return sessionStorage.getItem(TOKEN_KEY) || ''; }
 

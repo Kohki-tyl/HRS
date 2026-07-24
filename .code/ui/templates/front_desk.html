@@ -34,6 +34,7 @@
                 <button class="nav-btn" data-view="checkin-view" onclick="switchView('checkin-view')">チェックイン</button>
                 <button class="nav-btn" data-view="checkout-view" onclick="switchView('checkout-view')">チェックアウト</button>
             </nav>
+            <div class="sidebar-clock" id="sidebar-clock"></div>
             <button class="nav-btn logout-btn" onclick="logout()">ログアウト</button>
         </aside>
 
@@ -69,7 +70,6 @@
             <section id="checkin-view" class="view">
                 <div class="view-header">
                     <h2>チェックイン</h2>
-                    <span class="today-badge"><b id="ci-today"></b></span>
                 </div>
                 <p class="view-desc">本日ご宿泊予定の、まだチェックインしていない予約です。</p>
                 <div class="toolbar">
@@ -94,7 +94,6 @@
             <section id="checkout-view" class="view">
                 <div class="view-header">
                     <h2>チェックアウト</h2>
-                    <span class="today-badge"><b id="co-today"></b></span>
                 </div>
                 <p class="view-desc">現在ご宿泊中（チェックイン済み）の予約です。</p>
                 <div class="toolbar">
