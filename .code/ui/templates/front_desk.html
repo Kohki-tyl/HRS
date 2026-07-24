@@ -3,147 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Front Desk - HRS System</title>
+    <title>フロントデスク - HRS 管理画面</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="container">
-        <!-- ヘッダー -->
-        <header class="header">
-            <h1>Hotel Reservation System</h1>
-            <p class="subtitle">Front Desk Terminal</p>
-        </header>
-
-        <!-- タブ切り替え -->
-        <div class="tabs">
-            <button class="tab-btn active" data-tab="checkin-tab">
-                CHECK IN
-            </button>
-            <button class="tab-btn" data-tab="checkout-tab">
-                CHECK OUT
-            </button>
-            <button class="tab-btn" data-tab="reservations-tab">
-                RESERVATIONS
-            </button>
-        </div>
-
-        <!-- CHECK IN -->
-        <div id="checkin-tab" class="tab-content active">
-            <div class="card">
-                <h2>CHECK IN</h2>
-                
-                <!-- 検索フェーズ -->
-                <div id="checkin-search" class="phase active">
-                    <h3>Enter Reservation Number</h3>
-                    <p class="phase-description">
-                        Enter the reservation number provided by the guest.
-                    </p>
-                    <div class="form-group">
-                        <label for="checkin-number">Reservation Number</label>
-                        <input 
-                            type="text" 
-                            id="checkin-number" 
-                            class="input-number" 
-                            placeholder="e.g., 100001"
-                            maxlength="6"
-                        >
-                        <button class="btn btn-primary" onclick="checkInSearchReservation()">
-                            Search
-                        </button>
-                    </div>
-                    <div id="checkin-search-message" class="message"></div>
-                </div>
-
-                <!-- 確認フェーズ -->
-                <div id="checkin-confirm" class="phase">
-                    <div id="checkin-detail" class="detail-card"></div>
-                    <div class="button-group">
-                        <button class="btn btn-success" onclick="checkInConfirm()">
-                            CONFIRM CHECK IN
-                        </button>
-                        <button class="btn btn-secondary" onclick="checkInReset()">
-                            BACK
-                        </button>
-                    </div>
-                    <div id="checkin-confirm-message" class="message"></div>
-                </div>
+    <!-- ============ ログイン画面 ============ -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-card">
+            <h1>HRS フロントデスク</h1>
+            <p class="login-subtitle">管理者ログイン</p>
+            <div class="form-group">
+                <label for="login-password">パスワード</label>
+                <input type="password" id="login-password" class="input-text" placeholder="パスワードを入力" autocomplete="current-password">
             </div>
+            <button class="btn btn-primary btn-block" onclick="login()">ログイン</button>
+            <div id="login-message" class="message"></div>
         </div>
+    </div>
 
-        <!-- CHECK OUT -->
-        <div id="checkout-tab" class="tab-content">
-            <div class="card">
-                <h2>CHECK OUT</h2>
-                
-                <!-- 検索フェーズ -->
-                <div id="checkout-search" class="phase active">
-                    <h3>Enter Room Number</h3>
-                    <p class="phase-description">
-                        Enter the room number of the guest checking out.
-                    </p>
-                    <div class="form-group">
-                        <label for="checkout-number">Room Number</label>
-                        <input 
-                            type="text" 
-                            id="checkout-number" 
-                            class="input-number" 
-                            placeholder="e.g., 101"
-                            maxlength="4"
-                        >
-                        <button class="btn btn-primary" onclick="checkOutSearchInformation()">
-                            Search
-                        </button>
-                    </div>
-                    <div id="checkout-search-message" class="message"></div>
-                </div>
-
-                <!-- 確認フェーズ -->
-                <div id="checkout-confirm" class="phase">
-                    <div id="checkout-detail" class="detail-card"></div>
-                    <div class="form-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="payment-confirmed" class="checkbox">
-                            Payment Confirmed
-                        </label>
-                    </div>
-                    <div class="button-group">
-                        <button 
-                            class="btn btn-success" 
-                            id="checkout-confirm-btn"
-                            onclick="checkOutConfirm()"
-                            disabled
-                        >
-                            CONFIRM CHECK OUT
-                        </button>
-                        <button class="btn btn-secondary" onclick="checkOutReset()">
-                            BACK
-                        </button>
-                    </div>
-                    <div id="checkout-confirm-message" class="message"></div>
-                </div>
+    <!-- ============ 管理画面本体 ============ -->
+    <div id="app" class="app hidden">
+        <!-- サイドバー -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="sidebar-title">HRS</div>
+                <div class="sidebar-subtitle">Front Desk</div>
             </div>
-        </div>
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" data-view="reservations-view" onclick="switchView('reservations-view')">予約一覧</button>
+                <button class="nav-btn" data-view="checkin-view" onclick="switchView('checkin-view')">チェックイン</button>
+                <button class="nav-btn" data-view="checkout-view" onclick="switchView('checkout-view')">チェックアウト</button>
+            </nav>
+            <div class="sidebar-clock" id="sidebar-clock"></div>
+            <button class="nav-btn logout-btn" onclick="logout()">ログアウト</button>
+        </aside>
 
-        <!-- RESERVATIONS -->
-        <div id="reservations-tab" class="tab-content">
-            <div class="card">
-                <h2>RESERVATION LIST</h2>
-                <div class="reservations-controls">
-                    <button class="btn btn-primary" onclick="loadReservations()">
-                        REFRESH
+        <!-- メインコンテンツ -->
+        <main class="main-content">
+
+            <!-- ===== 予約一覧 ===== -->
+            <section id="reservations-view" class="view active">
+                <div class="view-header">
+                    <h2>予約一覧</h2>
+                </div>
+                <p class="view-desc">全予約を予約日順に表示します。見出しをクリックすると並べ替えできます。</p>
+                <div class="toolbar">
+                    <div class="search-group">
+                        <select id="res-attr" class="search-select" onchange="renderReservations()">
+                            <option value="reservation_number">予約番号</option>
+                            <option value="guest_name">予約名</option>
+                            <option value="staying_date">宿泊日</option>
+                            <option value="room_numbers">部屋番号</option>
+                        </select>
+                        <input type="text" id="res-query" class="search-input" placeholder="検索" oninput="renderReservations()">
+                    </div>
+                    <button class="icon-btn" onclick="loadReservations()" title="更新" aria-label="更新">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
                     </button>
                 </div>
-                <div id="reservations-list" class="reservations-list">
-                    <p class="placeholder">Click REFRESH to load reservations</p>
+                <div id="reservations-list" class="table-wrap">
+                    <p class="placeholder">読み込み中...</p>
                 </div>
+            </section>
+
+            <!-- ===== チェックイン ===== -->
+            <section id="checkin-view" class="view">
+                <div class="view-header">
+                    <h2>チェックイン</h2>
+                </div>
+                <p class="view-desc">本日ご宿泊予定の、まだチェックインしていない予約です。</p>
+                <div class="toolbar">
+                    <div class="search-group">
+                        <select id="ci-attr" class="search-select" onchange="renderCheckin()">
+                            <option value="reservation_number">予約番号</option>
+                            <option value="guest_name">予約名</option>
+                            <option value="room_numbers">部屋番号</option>
+                        </select>
+                        <input type="text" id="ci-query" class="search-input" placeholder="検索" oninput="renderCheckin()">
+                    </div>
+                    <button class="icon-btn" onclick="loadCheckinCandidates()" title="更新" aria-label="更新">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                    </button>
+                </div>
+                <div id="checkin-list" class="table-wrap">
+                    <p class="placeholder">読み込み中...</p>
+                </div>
+            </section>
+
+            <!-- ===== チェックアウト ===== -->
+            <section id="checkout-view" class="view">
+                <div class="view-header">
+                    <h2>チェックアウト</h2>
+                </div>
+                <p class="view-desc">現在ご宿泊中（チェックイン済み）の予約です。</p>
+                <div class="toolbar">
+                    <div class="search-group">
+                        <select id="co-attr" class="search-select" onchange="renderCheckout()">
+                            <option value="room_numbers">部屋番号</option>
+                            <option value="reservation_number">予約番号</option>
+                            <option value="guest_name">予約名</option>
+                        </select>
+                        <input type="text" id="co-query" class="search-input" placeholder="検索" oninput="renderCheckout()">
+                    </div>
+                    <button class="icon-btn" onclick="loadCheckoutCandidates()" title="更新" aria-label="更新">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                    </button>
+                </div>
+                <div id="checkout-list" class="table-wrap">
+                    <p class="placeholder">読み込み中...</p>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ============ 詳細モーダル ============ -->
+    <div id="detail-modal" class="modal hidden">
+        <div class="modal-backdrop" onclick="closeModal()"></div>
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-title">予約詳細</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modal-body" class="modal-body"></div>
+            <div id="modal-actions" class="modal-actions"></div>
+        </div>
+    </div>
+
+    <!-- ============ 確認ダイアログ ============ -->
+    <div id="confirm-modal" class="modal hidden">
+        <div class="modal-backdrop" onclick="closeConfirm()"></div>
+        <div class="modal-card modal-sm">
+            <div class="modal-header">
+                <h3>確認</h3>
+                <button class="modal-close" onclick="closeConfirm()">&times;</button>
+            </div>
+            <p id="confirm-text" class="confirm-text"></p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeConfirm()">いいえ</button>
+                <button class="btn btn-success" id="confirm-yes">はい</button>
             </div>
         </div>
+    </div>
 
-        <!-- ローディング表示 -->
-        <div id="loading" class="loading hidden">
-            <div class="spinner"></div>
-            <p>Processing...</p>
-        </div>
+    <!-- ============ トースト ============ -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- ============ ローディング ============ -->
+    <div id="loading" class="loading hidden">
+        <div class="spinner"></div>
+        <p>処理中...</p>
     </div>
 
     <script src="/static/app.js"></script>
