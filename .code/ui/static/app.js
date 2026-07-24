@@ -48,15 +48,19 @@ function escapeHtml(v) {
 function statusBadge(status) {
     return `<span class="status-badge ${STATUS_CLASS[status] || 'created'}">${escapeHtml(STATUS_LABELS[status] || status)}</span>`;
 }
-// 現在日時を「2026年7月25日 1時05分現在」の形式で返す
-function nowLabel() {
+// 現在日時（1行目=日付, 2行目=時刻）
+function nowDate() {
     const d = new Date();
-    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${d.getHours()}時${String(d.getMinutes()).padStart(2, '0')}分現在`;
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+function nowTime() {
+    const d = new Date();
+    return `${d.getHours()}時${String(d.getMinutes()).padStart(2, '0')}分`;
 }
 let clockTimer = null;
 function updateClock() {
     const clock = el('sidebar-clock');
-    if (clock) clock.textContent = nowLabel();
+    if (clock) clock.innerHTML = `<span class="clock-date">${nowDate()}</span><span class="clock-time">${nowTime()}</span>`;
 }
 function getToken() { return sessionStorage.getItem(TOKEN_KEY) || ''; }
 
