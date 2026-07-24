@@ -52,6 +52,7 @@
                             <option value="reservation_number">予約番号</option>
                             <option value="guest_name">予約名</option>
                             <option value="staying_date">宿泊日</option>
+                            <option value="room_numbers">部屋番号</option>
                         </select>
                         <input type="text" id="res-query" class="search-input" placeholder="検索" oninput="renderReservations()">
                     </div>
@@ -68,7 +69,7 @@
             <section id="checkin-view" class="view">
                 <div class="view-header">
                     <h2>チェックイン</h2>
-                    <span class="today-badge">本日 <b id="ci-today"></b></span>
+                    <span class="today-badge"><b id="ci-today"></b></span>
                 </div>
                 <p class="view-desc">本日ご宿泊予定の、まだチェックインしていない予約です。</p>
                 <div class="toolbar">
@@ -76,6 +77,7 @@
                         <select id="ci-attr" class="search-select" onchange="renderCheckin()">
                             <option value="reservation_number">予約番号</option>
                             <option value="guest_name">予約名</option>
+                            <option value="room_numbers">部屋番号</option>
                         </select>
                         <input type="text" id="ci-query" class="search-input" placeholder="検索" oninput="renderCheckin()">
                     </div>
@@ -92,7 +94,7 @@
             <section id="checkout-view" class="view">
                 <div class="view-header">
                     <h2>チェックアウト</h2>
-                    <span class="today-badge">本日 <b id="co-today"></b></span>
+                    <span class="today-badge"><b id="co-today"></b></span>
                 </div>
                 <p class="view-desc">現在ご宿泊中（チェックイン済み）の予約です。</p>
                 <div class="toolbar">

@@ -48,9 +48,17 @@ function escapeHtml(v) {
 function statusBadge(status) {
     return `<span class="status-badge ${STATUS_CLASS[status] || 'created'}">${escapeHtml(STATUS_LABELS[status] || status)}</span>`;
 }
-function localToday() {
+// 現在日時を「2026年7月25日 1時05分現在」の形式で返す
+function nowLabel() {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${d.getHours()}時${String(d.getMinutes()).padStart(2, '0')}分現在`;
+}
+let clockTimer = null;
+function updateClock() {
+    const label = nowLabel();
+    const ci = el('ci-today'), co = el('co-today');
+    if (ci) ci.textContent = label;
+    if (co) co.textContent = label;
 }
 function getToken() { return sessionStorage.getItem(TOKEN_KEY) || ''; }
 
@@ -113,8 +121,8 @@ function enterApp() {
     el('login-screen').classList.add('hidden');
     el('app').classList.remove('hidden');
     el('login-message').textContent = '';
-    el('ci-today').textContent = localToday();
-    el('co-today').textContent = localToday();
+    updateClock();
+    if (!clockTimer) clockTimer = setInterval(updateClock, 30000);
     switchView('reservations-view');
     loadReservations();
 }
