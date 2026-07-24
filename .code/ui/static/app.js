@@ -1,534 +1,402 @@
 // ==========================================
-// ユーティリティ関数
+// HRS フロントデスク（管理者）画面
 // ==========================================
 
-/**
- * メッセージを表示する
- */
-function showMessage(elementId, text, type = 'info') {
-    const element = document.getElementById(elementId);
-    element.textContent = text;
-    element.className = `message ${type}`;
-}
+// クライアント側で保持する予約データ（フィルタ用）
+let reservationsData = [];
+let checkinData = [];
+let checkoutData = [];
 
-/**
- * メッセージをクリアする
- */
-function clearMessage(elementId) {
-    const element = document.getElementById(elementId);
-    element.textContent = '';
-    element.className = 'message empty';
-}
+const TOKEN_KEY = 'hrs_admin_token';
 
-/**
- * ローディング表示を制御する
- */
+// ステータスの日本語表示
+const STATUS_LABELS = {
+    'Created': '予約済み',
+    'CheckedIn': 'チェックイン済み',
+    'Completed': 'チェックアウト済み',
+    'Cancelled': 'キャンセル済み',
+};
+const STATUS_CLASS = {
+    'Created': 'created',
+    'CheckedIn': 'checked-in',
+    'Completed': 'completed',
+    'Cancelled': 'cancelled',
+};
+
+// ==========================================
+// 共通ユーティリティ
+// ==========================================
+
 function setLoading(isLoading) {
-    const loadingElement = document.getElementById('loading');
-    if (isLoading) {
-        loadingElement.classList.remove('hidden');
-    } else {
-        loadingElement.classList.add('hidden');
-    }
+    document.getElementById('loading').classList.toggle('hidden', !isLoading);
+}
+
+function showMessage(elementId, text, type = 'info') {
+    const el = document.getElementById(elementId);
+    el.textContent = text;
+    el.className = `message ${type}`;
+}
+
+function clearMessage(elementId) {
+    const el = document.getElementById(elementId);
+    el.textContent = '';
+    el.className = 'message empty';
+}
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+}
+
+function statusBadge(status) {
+    const label = STATUS_LABELS[status] || status;
+    const cls = STATUS_CLASS[status] || 'created';
+    return `<span class="status-badge ${cls}">${escapeHtml(label)}</span>`;
+}
+
+function getToken() {
+    return sessionStorage.getItem(TOKEN_KEY) || '';
 }
 
 /**
- * フェーズを切り替える
+ * 認証付き API 呼び出し。401 の場合はログイン画面へ戻す。
  */
-function switchPhase(phaseElementId) {
-    // 同じタブ内の他のフェーズを非表示に
-    const parentCard = document.getElementById(phaseElementId).parentElement;
-    const allPhases = parentCard.querySelectorAll('.phase');
-    allPhases.forEach(phase => phase.classList.remove('active'));
-    
-    // 指定フェーズをアクティブに
-    document.getElementById(phaseElementId).classList.add('active');
-}
-
-/**
- * API呼び出しのヘルパー関数
- */
-async function apiCall(endpoint, method = 'POST', params = {}) {
-    try {
-        const queryString = new URLSearchParams(params).toString();
-        const url = queryString ? `${endpoint}?${queryString}` : endpoint;
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status}`);
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error('API Error:', error);
-        throw error;
+async function apiCall(endpoint, method = 'GET', params = null, body = null) {
+    let url = endpoint;
+    if (params) {
+        const qs = new URLSearchParams(params).toString();
+        url = qs ? `${endpoint}?${qs}` : endpoint;
     }
+    const options = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Token': getToken(),
+        },
+    };
+    if (body) options.body = JSON.stringify(body);
+
+    const response = await fetch(url, options);
+    if (response.status === 401) {
+        logout();
+        throw new Error('認証が切れました。再度ログインしてください。');
+    }
+    if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+    }
+    return await response.json();
 }
 
 // ==========================================
-// チェックイン関連の関数
+// ログイン / ログアウト
 // ==========================================
 
-/**
- * チェックイン: 予約を検索
- */
-async function checkInSearchReservation() {
-    const reservationNumber = document.getElementById('checkin-number').value.trim();
-
-    if (!reservationNumber) {
-        showMessage('checkin-search-message', '予約番号を入力してください。', 'error');
+async function login() {
+    const password = document.getElementById('login-password').value;
+    if (!password) {
+        showMessage('login-message', 'パスワードを入力してください。', 'error');
         return;
     }
-
     setLoading(true);
-    clearMessage('checkin-search-message');
-    clearMessage('checkin-confirm-message');
-
+    clearMessage('login-message');
     try {
-        const result = await apiCall('/front/check-in/search', 'POST', {
-            reservation_number: reservationNumber
+        const response = await fetch('/front/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password }),
         });
-
-        const message = result.message || '';
-
-        // エラーメッセージの場合（【エラー】で始まる）
-        if (message.includes('【エラー】')) {
-            showMessage('checkin-search-message', message.replace('【エラー】', ''), 'error');
+        if (response.status === 401) {
+            showMessage('login-message', 'パスワードが違います。', 'error');
             return;
         }
-
-        // 成功: 詳細情報を表示してフェーズ切り替え
-        displayCheckInDetail(result.message, reservationNumber);
-        switchPhase('checkin-confirm');
-        showMessage('checkin-search-message', '', 'success');
-
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        const data = await response.json();
+        sessionStorage.setItem(TOKEN_KEY, data.token);
+        enterApp();
     } catch (error) {
-        showMessage('checkin-search-message', 'システムエラーが発生しました。しばらく後で再度お試しください。', 'error');
+        showMessage('login-message', 'ログインに失敗しました。', 'error');
         console.error(error);
     } finally {
         setLoading(false);
     }
 }
 
-/**
- * チェックイン詳細情報を表示
- */
-function displayCheckInDetail(message, reservationNumber) {
-    // メッセージを解析して詳細情報を抽出
-    const lines = message.split('\n');
-    const detail = {};
-
-    lines.forEach(line => {
-        if (line.includes('ご予約者様:')) {
-            detail.guestName = line.replace('ご予約者様:', '').trim();
-        } else if (line.includes('ご宿泊日程:')) {
-            detail.stayingDate = line.replace('ご宿泊日程:', '').trim();
-        } else if (line.includes('予定お部屋:')) {
-            detail.rooms = line.replace('予定お部屋:', '').trim();
-        }
-    });
-
-    const detailCard = document.getElementById('checkin-detail');
-    detailCard.innerHTML = `
-        <div class="detail-row">
-            <div class="detail-label">予約番号</div>
-            <div class="detail-value highlight">${reservationNumber}</div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">ご予約者様</div>
-            <div class="detail-value">${detail.guestName || '情報取得中...'}</div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">ご宿泊日程</div>
-            <div class="detail-value">${detail.stayingDate || '情報取得中...'}</div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">予定お部屋</div>
-            <div class="detail-value">${detail.rooms || '情報取得中...'}</div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">ステータス</div>
-            <div class="detail-value">予約済み</div>
-        </div>
-    `;
-
-    // 予約番号を保存（確定時に使用）
-    document.getElementById('checkin-number').dataset.confirmed = reservationNumber;
+function logout() {
+    sessionStorage.removeItem(TOKEN_KEY);
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('login-password').value = '';
 }
 
-/**
- * チェックイン: 確定
- */
-async function checkInConfirm() {
-    const reservationNumber = document.getElementById('checkin-number').dataset.confirmed;
-
-    if (!reservationNumber) {
-        showMessage('checkin-confirm-message', 'エラー: 予約番号が見つかりません。最初からやり直してください。', 'error');
-        return;
-    }
-
-    setLoading(true);
-    clearMessage('checkin-confirm-message');
-
-    try {
-        const result = await apiCall('/front/check-in/confirm', 'POST', {
-            reservation_number: reservationNumber
-        });
-
-        const message = result.message || '';
-
-        // エラーメッセージの場合
-        if (message.includes('【エラー】')) {
-            showMessage('checkin-confirm-message', message.replace('【エラー】', ''), 'error');
-            return;
-        }
-
-        // 成功: 部屋番号を抽出して表示
-        showMessage('checkin-confirm-message', message, 'success');
-        
-        // 2秒後に最初に戻る
-        setTimeout(() => {
-            checkInReset();
-        }, 3000);
-
-    } catch (error) {
-        showMessage('checkin-confirm-message', 'チェックイン処理中にエラーが発生しました。', 'error');
-        console.error(error);
-    } finally {
-        setLoading(false);
-    }
-}
-
-/**
- * チェックイン: リセット
- */
-function checkInReset() {
-    document.getElementById('checkin-number').value = '';
-    document.getElementById('checkin-number').dataset.confirmed = '';
-    clearMessage('checkin-search-message');
-    clearMessage('checkin-confirm-message');
-    switchPhase('checkin-search');
+function enterApp() {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    clearMessage('login-message');
+    switchView('reservations-view');
+    loadReservations();
 }
 
 // ==========================================
-// チェックアウト関連の関数
+// ビュー切り替え（サイドバー）
 // ==========================================
 
-/**
- * チェックアウト: 請求情報を検索
- */
-async function checkOutSearchInformation() {
-    const roomNumber = document.getElementById('checkout-number').value.trim();
-
-    if (!roomNumber) {
-        showMessage('checkout-search-message', '部屋番号を入力してください。', 'error');
-        return;
-    }
-
-    setLoading(true);
-    clearMessage('checkout-search-message');
-    clearMessage('checkout-confirm-message');
-    document.getElementById('payment-confirmed').checked = false;
-
-    try {
-        const result = await apiCall('/front/check-out/search', 'POST', {
-            room_number: roomNumber
-        });
-
-        const message = result.message || '';
-
-        // エラーメッセージの場合
-        if (message.includes('【エラー】')) {
-            showMessage('checkout-search-message', message.replace('【エラー】', ''), 'error');
-            return;
-        }
-
-        // 成功: 請求情報を表示してフェーズ切り替え
-        displayCheckOutDetail(result.message, roomNumber);
-        switchPhase('checkout-confirm');
-        showMessage('checkout-search-message', '', 'success');
-
-    } catch (error) {
-        showMessage('checkout-search-message', 'システムエラーが発生しました。しばらく後で再度お試しください。', 'error');
-        console.error(error);
-    } finally {
-        setLoading(false);
-    }
-}
-
-/**
- * チェックアウト詳細情報を表示
- */
-function displayCheckOutDetail(message, roomNumber) {
-    // メッセージを解析して詳細情報を抽出
-    const lines = message.split('\n');
-    const detail = {};
-
-    lines.forEach(line => {
-        if (line.includes('ご宿泊者様:')) {
-            detail.guestName = line.replace('ご宿泊者様:', '').trim();
-        } else if (line.includes('ご利用お部屋:')) {
-            detail.rooms = line.replace('ご利用お部屋:', '').trim();
-        } else if (line.includes('ご請求額:')) {
-            detail.amount = line.replace('ご請求額:', '').trim();
-        }
+function switchView(viewId) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+    document.querySelectorAll('.nav-btn[data-view]').forEach(b => {
+        b.classList.toggle('active', b.dataset.view === viewId);
     });
-
-    const detailCard = document.getElementById('checkout-detail');
-    detailCard.innerHTML = `
-        <div class="detail-row">
-            <div class="detail-label">部屋番号</div>
-            <div class="detail-value highlight">${roomNumber}</div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">ご宿泊者様</div>
-            <div class="detail-value">${detail.guestName || '情報取得中...'}</div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">ご利用お部屋</div>
-            <div class="detail-value">${detail.rooms || '情報取得中...'}</div>
-        </div>
-        <div class="detail-row amount-row">
-            <div class="detail-label">ご請求額</div>
-            <div class="detail-value">${detail.amount || '情報取得中...'}</div>
-        </div>
-    `;
-
-    // 部屋番号を保存（確定時に使用）
-    document.getElementById('checkout-number').dataset.confirmed = roomNumber;
-}
-
-/**
- * チェックアウト: 確定
- */
-async function checkOutConfirm() {
-    const roomNumber = document.getElementById('checkout-number').dataset.confirmed;
-
-    if (!roomNumber) {
-        showMessage('checkout-confirm-message', 'エラー: 部屋番号が見つかりません。最初からやり直してください。', 'error');
-        return;
-    }
-
-    setLoading(true);
-    clearMessage('checkout-confirm-message');
-
-    try {
-        const result = await apiCall('/front/check-out/confirm', 'POST', {
-            room_number: roomNumber
-        });
-
-        const message = result.message || '';
-
-        // エラーメッセージの場合
-        if (message.includes('【エラー】')) {
-            showMessage('checkout-confirm-message', message.replace('【エラー】', ''), 'error');
-            return;
-        }
-
-        // 成功: メッセージを表示
-        showMessage('checkout-confirm-message', message, 'success');
-
-        // 2秒後に最初に戻る
-        setTimeout(() => {
-            checkOutReset();
-        }, 3000);
-
-    } catch (error) {
-        showMessage('checkout-confirm-message', 'チェックアウト処理中にエラーが発生しました。', 'error');
-        console.error(error);
-    } finally {
-        setLoading(false);
-    }
-}
-
-/**
- * チェックアウト: リセット
- */
-function checkOutReset() {
-    document.getElementById('checkout-number').value = '';
-    document.getElementById('checkout-number').dataset.confirmed = '';
-    document.getElementById('payment-confirmed').checked = false;
-    clearMessage('checkout-search-message');
-    clearMessage('checkout-confirm-message');
-    switchPhase('checkout-search');
-    updateCheckOutConfirmButton();
-}
-
-/**
- * チェックアウト確定ボタンの有効化/無効化を更新
- */
-function updateCheckOutConfirmButton() {
-    const checkbox = document.getElementById('payment-confirmed');
-    const button = document.getElementById('checkout-confirm-btn');
-    button.disabled = !checkbox.checked;
+    if (viewId === 'checkin-view') loadCheckinCandidates();
+    if (viewId === 'checkout-view') loadCheckoutCandidates();
 }
 
 // ==========================================
-// イベントリスナー
+// 予約一覧
 // ==========================================
 
-document.addEventListener('DOMContentLoaded', function() {
-    // タブ切り替え
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    tabButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const tabName = this.getAttribute('data-tab');
-            
-            // ボタンのアクティブ状態を更新
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
-            
-            // タブコンテンツを切り替え
-            const tabContents = document.querySelectorAll('.tab-content');
-            tabContents.forEach(content => content.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
-            
-            // リセット処理
-            checkInReset();
-            checkOutReset();
-        });
-    });
-
-    // チェックアウト: 支払い確認チェックボックス
-    document.getElementById('payment-confirmed').addEventListener('change', function() {
-        updateCheckOutConfirmButton();
-    });
-
-    // Enterキーでの送信
-    document.getElementById('checkin-number').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            if (this.dataset.confirmed) {
-                checkInConfirm();
-            } else {
-                checkInSearchReservation();
-            }
-        }
-    });
-
-    document.getElementById('checkout-number').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            if (this.dataset.confirmed) {
-                if (document.getElementById('payment-confirmed').checked) {
-                    checkOutConfirm();
-                }
-            } else {
-                checkOutSearchInformation();
-            }
-        }
-    });
-
-    // 数字のみを入力できるようにフィルタ
-    document.getElementById('checkin-number').addEventListener('input', function(e) {
-        this.value = this.value.replace(/[^0-9]/g, '');
-    });
-
-    document.getElementById('checkout-number').addEventListener('input', function(e) {
-        this.value = this.value.replace(/[^0-9]/g, '');
-    });
-
-    // 初期状態を設定
-    updateCheckOutConfirmButton();
-});
-
-// ==========================================
-// 予約一覧関連の関数
-// ==========================================
-
-/**
- * 予約一覧を取得して表示
- */
 async function loadReservations() {
     setLoading(true);
-    
     try {
-        const response = await fetch('/front/reservations', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const reservations = data.reservations || [];
-
-        if (reservations.length === 0) {
-            document.getElementById('reservations-list').innerHTML = 
-                '<p class="placeholder">No reservations found</p>';
-        } else {
-            displayReservationsTable(reservations);
-        }
-
+        const data = await apiCall('/front/reservations', 'GET');
+        reservationsData = data.reservations || [];
+        renderReservations();
     } catch (error) {
-        console.error('Error loading reservations:', error);
-        document.getElementById('reservations-list').innerHTML = 
-            '<p class="placeholder" style="color: var(--danger-color);">Error loading reservations. Please try again.</p>';
+        document.getElementById('reservations-list').innerHTML =
+            `<p class="placeholder error-text">${escapeHtml(error.message)}</p>`;
     } finally {
         setLoading(false);
     }
 }
 
-/**
- * 予約一覧をテーブルで表示
- */
-function displayReservationsTable(reservations) {
-    let tableHTML = `
-        <table class="reservations-table">
+function renderReservations() {
+    const num = document.getElementById('res-filter-number').value.trim();
+    const name = document.getElementById('res-filter-name').value.trim();
+    const dateVal = document.getElementById('res-filter-date').value;
+
+    const rows = reservationsData.filter(r =>
+        (!num || String(r.reservation_number).includes(num)) &&
+        (!name || (r.guest_name || '').includes(name)) &&
+        (!dateVal || r.staying_date === dateVal)
+    );
+
+    renderTable('reservations-list', rows, { onRowClick: 'openReservationDetail' });
+}
+
+function openReservationDetail(reservationNumber) {
+    const res = reservationsData.find(r => r.reservation_number === reservationNumber);
+    if (res) openModal(res, '予約詳細', []);
+}
+
+// ==========================================
+// チェックイン（本日の予約）
+// ==========================================
+
+async function loadCheckinCandidates() {
+    setLoading(true);
+    try {
+        const data = await apiCall('/front/checkin/candidates', 'GET');
+        checkinData = data.reservations || [];
+        renderCheckin();
+    } catch (error) {
+        document.getElementById('checkin-list').innerHTML =
+            `<p class="placeholder error-text">${escapeHtml(error.message)}</p>`;
+    } finally {
+        setLoading(false);
+    }
+}
+
+function renderCheckin() {
+    const num = document.getElementById('ci-filter-number').value.trim();
+    const name = document.getElementById('ci-filter-name').value.trim();
+    const rows = checkinData.filter(r =>
+        (!num || String(r.reservation_number).includes(num)) &&
+        (!name || (r.guest_name || '').includes(name))
+    );
+    if (rows.length === 0 && checkinData.length === 0) {
+        document.getElementById('checkin-list').innerHTML =
+            '<p class="placeholder">本日チェックイン予定の予約はありません</p>';
+        return;
+    }
+    renderTable('checkin-list', rows, { onRowClick: 'openCheckinDetail' });
+}
+
+function openCheckinDetail(reservationNumber) {
+    const res = checkinData.find(r => r.reservation_number === reservationNumber);
+    if (!res) return;
+    openModal(res, 'チェックイン', [
+        { label: 'チェックインを確定', cls: 'btn-success', onclick: () => confirmCheckIn(res.reservation_number) },
+    ]);
+}
+
+async function confirmCheckIn(reservationNumber) {
+    setLoading(true);
+    clearMessage('modal-message');
+    try {
+        const result = await apiCall('/front/check-in/confirm', 'POST', { reservation_number: reservationNumber });
+        const message = result.message || '';
+        if (message.includes('【エラー】')) {
+            showMessage('modal-message', message.replace('【エラー】', ''), 'error');
+            return;
+        }
+        showMessage('modal-message', message, 'success');
+        document.getElementById('modal-actions').innerHTML = '';
+        setTimeout(() => { closeModal(); loadCheckinCandidates(); }, 1800);
+    } catch (error) {
+        showMessage('modal-message', 'チェックイン処理中にエラーが発生しました。', 'error');
+        console.error(error);
+    } finally {
+        setLoading(false);
+    }
+}
+
+// ==========================================
+// チェックアウト（宿泊中）
+// ==========================================
+
+async function loadCheckoutCandidates() {
+    setLoading(true);
+    try {
+        const data = await apiCall('/front/checkout/candidates', 'GET');
+        checkoutData = data.reservations || [];
+        renderCheckout();
+    } catch (error) {
+        document.getElementById('checkout-list').innerHTML =
+            `<p class="placeholder error-text">${escapeHtml(error.message)}</p>`;
+    } finally {
+        setLoading(false);
+    }
+}
+
+function renderCheckout() {
+    const room = document.getElementById('co-filter-room').value.trim();
+    const rows = checkoutData.filter(r =>
+        !room || (r.room_numbers || []).some(n => String(n).includes(room))
+    );
+    if (rows.length === 0 && checkoutData.length === 0) {
+        document.getElementById('checkout-list').innerHTML =
+            '<p class="placeholder">現在宿泊中の予約はありません</p>';
+        return;
+    }
+    renderTable('checkout-list', rows, { onRowClick: 'openCheckoutDetail' });
+}
+
+function openCheckoutDetail(reservationNumber) {
+    const res = checkoutData.find(r => r.reservation_number === reservationNumber);
+    if (!res) return;
+    openModal(res, 'チェックアウト', [
+        { label: 'チェックアウトを確定', cls: 'btn-success', onclick: () => confirmCheckOut(res.room_numbers[0]) },
+    ]);
+}
+
+async function confirmCheckOut(roomNumber) {
+    setLoading(true);
+    clearMessage('modal-message');
+    try {
+        const result = await apiCall('/front/check-out/confirm', 'POST', { room_number: roomNumber });
+        const message = result.message || '';
+        if (message.includes('【エラー】')) {
+            showMessage('modal-message', message.replace('【エラー】', ''), 'error');
+            return;
+        }
+        showMessage('modal-message', message, 'success');
+        document.getElementById('modal-actions').innerHTML = '';
+        setTimeout(() => { closeModal(); loadCheckoutCandidates(); }, 1800);
+    } catch (error) {
+        showMessage('modal-message', 'チェックアウト処理中にエラーが発生しました。', 'error');
+        console.error(error);
+    } finally {
+        setLoading(false);
+    }
+}
+
+// ==========================================
+// テーブル描画（共通）
+// ==========================================
+
+function renderTable(containerId, rows, { onRowClick }) {
+    if (rows.length === 0) {
+        document.getElementById(containerId).innerHTML =
+            '<p class="placeholder">該当する予約がありません</p>';
+        return;
+    }
+    let html = `
+        <table class="data-table">
             <thead>
                 <tr>
-                    <th>Res. No.</th>
-                    <th>Guest Name</th>
-                    <th>Check-in Date</th>
-                    <th>Room</th>
-                    <th>Amount</th>
-                    <th>Status</th>
+                    <th>予約番号</th>
+                    <th>予約名</th>
+                    <th>宿泊日</th>
+                    <th>部屋</th>
+                    <th>料金</th>
+                    <th>状態</th>
                 </tr>
             </thead>
             <tbody>
     `;
-
-    reservations.forEach(res => {
-        const statusBadge = getStatusBadge(res.status || 'CREATED');
-        tableHTML += `
-            <tr>
-                <td>${res.reservation_number || res.number}</td>
-                <td>${res.guest_name || res.guest?.name || 'N/A'}</td>
-                <td>${res.check_in_date || res.check_in_date_planned || 'N/A'}</td>
-                <td>${res.room_number || res.room?.number || 'N/A'}</td>
-                <td>${res.total_amount || res.payment?.total_amount || '0'}</td>
-                <td>${statusBadge}</td>
+    rows.forEach(r => {
+        html += `
+            <tr class="clickable-row" onclick="${onRowClick}(${r.reservation_number})">
+                <td>${escapeHtml(r.reservation_number)}</td>
+                <td>${escapeHtml(r.guest_name)}</td>
+                <td>${escapeHtml(r.staying_date)}</td>
+                <td>${escapeHtml((r.room_numbers || []).join(', '))}</td>
+                <td>${escapeHtml(r.total_amount)}円</td>
+                <td>${statusBadge(r.status)}</td>
             </tr>
         `;
     });
+    html += '</tbody></table>';
+    document.getElementById(containerId).innerHTML = html;
+}
 
-    tableHTML += `
-            </tbody>
-        </table>
+// ==========================================
+// 詳細モーダル
+// ==========================================
+
+function openModal(res, title, actions) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').innerHTML = `
+        <div class="detail-row"><span class="detail-label">予約番号</span><span class="detail-value highlight">${escapeHtml(res.reservation_number)}</span></div>
+        <div class="detail-row"><span class="detail-label">予約名</span><span class="detail-value">${escapeHtml(res.guest_name)} 様</span></div>
+        <div class="detail-row"><span class="detail-label">宿泊日</span><span class="detail-value">${escapeHtml(res.staying_date)}</span></div>
+        <div class="detail-row"><span class="detail-label">利用部屋</span><span class="detail-value">${escapeHtml((res.room_numbers || []).join(', '))}</span></div>
+        <div class="detail-row"><span class="detail-label">料金</span><span class="detail-value">${escapeHtml(res.total_amount)}円</span></div>
+        <div class="detail-row"><span class="detail-label">状態</span><span class="detail-value">${statusBadge(res.status)}</span></div>
     `;
-
-    document.getElementById('reservations-list').innerHTML = tableHTML;
+    const actionsEl = document.getElementById('modal-actions');
+    actionsEl.innerHTML = '';
+    actions.forEach(a => {
+        const btn = document.createElement('button');
+        btn.className = `btn ${a.cls}`;
+        btn.textContent = a.label;
+        btn.onclick = a.onclick;
+        actionsEl.appendChild(btn);
+    });
+    clearMessage('modal-message');
+    document.getElementById('detail-modal').classList.remove('hidden');
 }
 
-/**
- * ステータスに応じたバッジHTMLを生成
- */
-function getStatusBadge(status) {
-    const statusMap = {
-        'CREATED': { text: 'Created', class: 'created' },
-        'CHECKED_IN': { text: 'Checked In', class: 'checked-in' },
-        'COMPLETED': { text: 'Completed', class: 'completed' },
-        'CANCELLED': { text: 'Cancelled', class: 'cancelled' }
-    };
-
-    const badgeInfo = statusMap[status] || { text: status, class: 'created' };
-    return `<span class="status-badge ${badgeInfo.class}">${badgeInfo.text}</span>`;
+function closeModal() {
+    document.getElementById('detail-modal').classList.add('hidden');
 }
+
+// ==========================================
+// 初期化
+// ==========================================
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Enter でログイン
+    document.getElementById('login-password').addEventListener('keypress', e => {
+        if (e.key === 'Enter') login();
+    });
+    // Escape でモーダルを閉じる
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeModal();
+    });
+
+    // トークンが残っていれば自動で本体を表示（切れていれば最初のAPIで弾かれログインへ）
+    if (getToken()) {
+        enterApp();
+    }
+});

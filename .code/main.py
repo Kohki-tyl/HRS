@@ -1,8 +1,11 @@
 import os
+import secrets
+from datetime import date
 from pathlib import Path
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (
@@ -15,7 +18,7 @@ from linebot.v3.messaging import (
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 # 各層のモジュールをインポート
-from domain import Hotel, RoomType, Room, Reservation, Guest, Payment
+from domain import Hotel, RoomType, Room, Reservation, Guest, Payment, ReservationStatus
 from infrastructure import SQLiteReservationRepository
 from application import ReservationControl, CheckInControl, CheckOutControl
 from ui import SessionManager, ChatInterface, FrontDeskTerminal
@@ -40,6 +43,34 @@ line_configuration = Configuration(
     access_token=LINE_CHANNEL_ACCESS_TOKEN or "LINE_NOT_CONFIGURED"
 )
 handler = WebhookHandler(LINE_CHANNEL_SECRET or "LINE_NOT_CONFIGURED")
+
+# --- 管理者（フロントデスク画面）の認証 ---
+# パスワードは環境変数 ADMIN_PASSWORD で設定（既定は開発用の "hrs-admin"）。
+# ログイン成功でプロセス起動ごとのトークンを発行し、以降の API 呼び出しで検証する。
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "hrs-admin").strip()
+_ADMIN_TOKEN = secrets.token_urlsafe(24)
+
+
+class LoginRequest(BaseModel):
+    password: str
+
+
+def require_admin(x_admin_token: str = Header(default="")):
+    """管理者トークンを検証する依存関数。フロントデスクの各 API を保護する。"""
+    if not secrets.compare_digest(x_admin_token, _ADMIN_TOKEN):
+        raise HTTPException(status_code=401, detail="認証が必要です。ログインしてください。")
+
+
+def _serialize_reservation(res: Reservation) -> dict:
+    """予約エンティティを画面表示用の JSON へ変換する"""
+    return {
+        "reservation_number": res.reservation_number,
+        "guest_name": res.guest.name if res.guest else "",
+        "staying_date": str(res.staying_date),
+        "room_numbers": res.get_room_numbers(),
+        "total_amount": res.get_amount(),
+        "status": res.status.value,
+    }
 
 
 # ==========================================
@@ -86,7 +117,7 @@ def on_startup():
 
     空室状況はその都度 DB から判定する（DB引き）ため、起動時の在庫復元は不要。
     """
-    from datetime import date
+    from datetime import date, timedelta
 
     repository.initialize_schema()
 
@@ -97,25 +128,27 @@ def on_startup():
         print("🔧 デモ用のテスト予約を投入します")
         print("="*60)
 
-        # テスト用予約データを作成
+        # 宿泊日は起動日を基準にする（本日分はチェックイン画面のデモに使える）
+        today = date.today()
+        tomorrow = today + timedelta(days=1)
         test_reservations = [
             {
                 "reservation_number": 100001,
-                "staying_date": date(2026, 7, 22),
+                "staying_date": today,
                 "guest_name": "田中太郎",
                 "room_numbers": [101],
                 "amount": 10000
             },
             {
                 "reservation_number": 100002,
-                "staying_date": date(2026, 7, 22),
+                "staying_date": today,
                 "guest_name": "佐藤花子",
                 "room_numbers": [201],
                 "amount": 50000
             },
             {
                 "reservation_number": 100003,
-                "staying_date": date(2026, 7, 23),
+                "staying_date": tomorrow,
                 "guest_name": "鈴木次郎",
                 "room_numbers": [102],
                 "amount": 10000
@@ -214,66 +247,66 @@ def handle_message(event):
 
 
 # ==========================================
-# 5. フロント端末 エンドポイント（受付係の操作）
+# 5. 管理者ログイン
 # ==========================================
 
-@app.post("/front/check-in/search")
+@app.post("/front/login")
+async def front_login(req: LoginRequest):
+    """管理者パスワードを検証し、成功時にトークンを発行する"""
+    if not secrets.compare_digest(req.password, ADMIN_PASSWORD):
+        raise HTTPException(status_code=401, detail="パスワードが違います。")
+    return {"token": _ADMIN_TOKEN}
+
+
+# ==========================================
+# 6. フロントデスク エンドポイント（要ログイン）
+# ==========================================
+
+@app.get("/front/reservations", dependencies=[Depends(require_admin)])
+async def get_reservations_list():
+    """全予約を予約日順に並べて返す（予約一覧機能）"""
+    reservations = sorted(
+        repository.find_all(),
+        key=lambda r: (str(r.staying_date), r.reservation_number),
+    )
+    return {"reservations": [_serialize_reservation(r) for r in reservations]}
+
+
+@app.get("/front/checkin/candidates", dependencies=[Depends(require_admin)])
+async def get_checkin_candidates():
+    """本日分の、まだチェックインしていない予約を返す（チェックイン機能）"""
+    todays = [
+        r for r in repository.find_by_staying_date(date.today())
+        if r.status == ReservationStatus.CREATED
+    ]
+    todays.sort(key=lambda r: r.reservation_number)
+    return {"reservations": [_serialize_reservation(r) for r in todays]}
+
+
+@app.get("/front/checkout/candidates", dependencies=[Depends(require_admin)])
+async def get_checkout_candidates():
+    """現在チェックイン中（宿泊中）の予約を返す（チェックアウト機能）"""
+    staying = [r for r in repository.find_all() if r.status == ReservationStatus.CHECKED_IN]
+    staying.sort(key=lambda r: r.reservation_number)
+    return {"reservations": [_serialize_reservation(r) for r in staying]}
+
+
+@app.post("/front/check-in/search", dependencies=[Depends(require_admin)])
 async def front_search_reservation(reservation_number: str):
     """受付係が予約番号を入力し、予約内容を照会する"""
     return {"message": front_desk.input_reservation_number(reservation_number)}
 
-@app.post("/front/check-in/confirm")
+@app.post("/front/check-in/confirm", dependencies=[Depends(require_admin)])
 async def front_confirm_check_in(reservation_number: str):
     """受付係が内容確認後、チェックインを確定する"""
     return {"message": front_desk.input_check_in(reservation_number)}
 
-@app.post("/front/check-out/search")
+@app.post("/front/check-out/search", dependencies=[Depends(require_admin)])
 async def front_search_information(room_number: str):
     """受付係が部屋番号を入力し、請求額を照会する"""
     return {"message": front_desk.input_room_number(room_number)}
 
-@app.post("/front/check-out/confirm")
+@app.post("/front/check-out/confirm", dependencies=[Depends(require_admin)])
 async def front_confirm_check_out(room_number: str):
     """受付係が支払い受領後、チェックアウトを確定する"""
     return {"message": front_desk.input_check_out(room_number)}
-
-@app.get("/front/reservations")
-async def get_reservations_list():
-    """予約一覧を取得するエンドポイント"""
-    try:
-        reservations = repository.find_all()
-        
-        # 予約データをJSON形式に変換
-        reservations_data = []
-        for res in reservations:
-            reservations_data.append({
-                "reservation_number": res.reservation_number,
-                "number": res.reservation_number,
-                "guest_name": res.guest.name if res.guest else "N/A",
-                "guest": {
-                    "name": res.guest.name if res.guest else "N/A"
-                },
-                "check_in_date": str(res.staying_date) if hasattr(res, 'staying_date') else "N/A",
-                "check_in_date_planned": str(res.staying_date) if hasattr(res, 'staying_date') else "N/A",
-                "room_number": res.rooms[0].room_number if res.rooms else "N/A",
-                "room": {
-                    "number": res.rooms[0].room_number if res.rooms else "N/A"
-                },
-                "total_amount": res.payment.amount if res.payment else 0,
-                "payment": {
-                    "total_amount": res.payment.amount if res.payment else 0
-                },
-                "status": res.status.value if hasattr(res.status, 'value') else str(res.status)
-            })
-        
-        return {
-            "status": "success",
-            "reservations": reservations_data
-        }
-    except Exception as e:
-        print(f"Error fetching reservations: {e}")
-        return {
-            "status": "error",
-            "message": str(e),
-            "reservations": []
-        }
