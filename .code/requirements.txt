@@ -2,3 +2,5 @@ fastapi>=0.116,<1
 uvicorn[standard]>=0.35,<1
 line-bot-sdk>=3.17,<4
 pytest>=8.4,<9
+# Test dependency required by FastAPI TestClient
+httpx2>=2.9,<3
