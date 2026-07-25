@@ -15,6 +15,10 @@ class SessionState(Enum):
     RES_AWAITING_NAME = "RES_AWAITING_NAME"
     RES_AWAITING_CONFIRM = "RES_AWAITING_CONFIRM"
 
+    # キャンセルフロー (UC4) のステータス
+    CANCEL_AWAITING_RES_NUM = "CANCEL_AWAITING_RES_NUM"
+    CANCEL_AWAITING_CONFIRM = "CANCEL_AWAITING_CONFIRM"
+
 class SessionManager:
     """ユーザーごとの会話の進行状態を管理するクラス"""
 

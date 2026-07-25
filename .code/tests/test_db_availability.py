@@ -34,7 +34,7 @@ def test_find_by_staying_date_filters_date_and_cancelled(db_path):
     r1 = ctrl.reserve_rooms(d1, "A", {"Standard": 1})
     ctrl.reserve_rooms(d2, "B", {"Standard": 1})
     # d1 の予約をキャンセル
-    CancelControl(repo).cancel(r1.reservation_number)
+    CancelControl(repo).cancel(r1.reservation_number, requester_user_id=None)
     ctrl.reserve_rooms(d1, "C", {"Suite": 1})
 
     d1_active = repo.find_by_staying_date(d1)
@@ -87,7 +87,7 @@ def test_cancel_frees_stock(db_path):
     res = ctrl.reserve_rooms(d, "早稲田太郎", {"Suite": 1})
     assert "Suite" not in ctrl.get_available_stocks(d)
 
-    CancelControl(repo).cancel(res.reservation_number)
+    CancelControl(repo).cancel(res.reservation_number, requester_user_id=None)
     # キャンセルすると Suite が空室に戻る
     assert ctrl.get_available_stocks(d)["Suite"]["count"] == 1
 

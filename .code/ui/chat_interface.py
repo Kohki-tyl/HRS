@@ -1,11 +1,24 @@
 from datetime import datetime
+import hashlib
 import logging
 
-from domain import BureaucraticError
-from application import ReservationControl
+from domain import BureaucraticError, ReservationStatus
+from application import ReservationControl, CancelControl
 from .session_manager import SessionManager, SessionState
 
 logger = logging.getLogger(__name__)
+
+
+def _mask_user_id(user_id: str) -> str:
+    """LINE userId をログへ全文出力しないためのマスク表現を返す。
+
+    個人を直接特定できないよう, SHA-256 の先頭のみを用いる。ログ間の突き合わせ
+    (同一ユーザの追跡) はできるが, 元の userId は復元できない。
+    """
+    if not user_id:
+        return "(none)"
+    digest = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+    return f"uid:{digest[:8]}"
 
 class ChatInterface:
     """LINEボットの対話管理とアプリケーション層へのルーティングを担うバウンダリ
@@ -22,9 +35,11 @@ class ChatInterface:
     def __init__(
         self,
         res_ctrl: ReservationControl,
+        cancel_ctrl: CancelControl,
         session_manager: SessionManager
     ):
         self.res_ctrl = res_ctrl
+        self.cancel_ctrl = cancel_ctrl
         self.session_manager = session_manager
 
     def handle_message(self, user_id: str, text: str) -> str:
@@ -35,7 +50,7 @@ class ChatInterface:
         try:
             if text in self.RESTART_KEYWORDS and state != SessionState.INIT:
                 self.session_manager.clear_session(user_id)
-                return "手続きを中断しました。\n最初からやり直す場合は「予約」と入力してください。"
+                return "手続きを中断しました。\n最初からやり直す場合は「予約」または「予約キャンセル」と入力してください。"
 
             if state == SessionState.INIT:
                 return self._handle_init(user_id, text)
@@ -47,9 +62,13 @@ class ChatInterface:
                 return self._handle_name(user_id, text)
             elif state == SessionState.RES_AWAITING_CONFIRM:
                 return self._handle_confirm(user_id, text)
+            elif state == SessionState.CANCEL_AWAITING_RES_NUM:
+                return self._handle_cancel_number(user_id, text)
+            elif state == SessionState.CANCEL_AWAITING_CONFIRM:
+                return self._handle_cancel_confirm(user_id, text)
             else:
                 # 未知の状態に陥った場合はセッションを捨てて案内に戻す
-                logger.warning("未知のセッション状態です: user_id=%s, state=%s", user_id, state)
+                logger.warning("未知のセッション状態です: user=%s, state=%s", _mask_user_id(user_id), state)
                 self.session_manager.clear_session(user_id)
                 return self._notify_error("セッションが不正な状態になりました。最初からやり直してください。")
 
@@ -57,7 +76,7 @@ class ChatInterface:
             self.session_manager.clear_session(user_id)
             return self._notify_error(str(e))
         except Exception:
-            logger.exception("予約対話の処理中に予期しない例外が発生しました: user_id=%s", user_id)
+            logger.exception("予約対話の処理中に予期しない例外が発生しました: user=%s", _mask_user_id(user_id))
             self.session_manager.clear_session(user_id)
             return self._notify_error("システムエラーが発生しました。")
 
@@ -65,6 +84,14 @@ class ChatInterface:
     # 1. 初期状態（機能のルーティング）
     # ==========================================
     def _handle_init(self, user_id: str, text: str) -> str:
+        # 「予約キャンセル」なども拾えるよう、キャンセルを予約より先に判定する
+        if "キャンセル" in text:
+            self.session_manager.update_state(user_id, SessionState.CANCEL_AWAITING_RES_NUM)
+            return (
+                "予約のキャンセルですね。\n"
+                "キャンセルする予約番号（数字）を入力してください。"
+            )
+
         if "予約" in text:
             self.session_manager.update_state(user_id, SessionState.RES_AWAITING_DATE)
             return (
@@ -79,7 +106,7 @@ class ChatInterface:
                 "ご到着の際は、予約番号をフロントにお伝えください。"
             )
 
-        return "ご用件を「予約」と入力してください。"
+        return "ご用件を「予約」または「予約キャンセル」と入力してください。"
 
     # ==========================================
     # 2. 予約フロー (UC1)
@@ -143,11 +170,63 @@ class ChatInterface:
         reservation = self.res_ctrl.reserve_rooms(
             staying_date=ctx["staying_date"],
             guest_name=ctx["guest_name"],
-            requested_rooms=ctx["requested_rooms"]
+            requested_rooms=ctx["requested_rooms"],
+            line_user_id=user_id,
         )
 
         self.session_manager.clear_session(user_id)
         return self._notify_reservation_number(reservation)
+
+    # ==========================================
+    # 2b. キャンセルフロー (UC4)
+    # ==========================================
+    def _handle_cancel_number(self, user_id: str, text: str) -> str:
+        try:
+            reservation_number = int(text)
+        except ValueError:
+            return "予約番号は数字で入力してください。"
+
+        # 本人の予約のみ照会できる（他人の予約は「見つからない」と同じ扱い）
+        reservation = self.cancel_ctrl.search_reservation(reservation_number, requester_user_id=user_id)
+        if not reservation:
+            self.session_manager.clear_session(user_id)
+            return self._notify_error("該当する予約が見つかりません。予約番号をご確認ください。")
+
+        # 確認を求める前に、キャンセル可能かを判定して案内する
+        if reservation.status != ReservationStatus.CREATED:
+            self.session_manager.clear_session(user_id)
+            return self._notify_error("この予約はキャンセルできません（すでに手続き済み、またはキャンセル済みです）。")
+        if not reservation.is_within_cancel_period():
+            self.session_manager.clear_session(user_id)
+            return self._notify_error("キャンセルはチェックインの前日までです。期限を過ぎています。")
+
+        self.session_manager.update_context(user_id, "cancel_number", reservation_number)
+        self.session_manager.update_state(user_id, SessionState.CANCEL_AWAITING_CONFIRM)
+        rooms_text = ", ".join(map(str, reservation.get_room_numbers()))
+        return (
+            "以下の予約をキャンセルします。\n"
+            f"予約番号: {reservation.reservation_number}\n"
+            f"宿泊日: {reservation.staying_date}\n"
+            f"お部屋: {rooms_text}\n"
+            f"料金: {reservation.get_amount()}円\n\n"
+            "よろしければ「はい」、やめる場合は「いいえ」と入力してください。"
+        )
+
+    def _handle_cancel_confirm(self, user_id: str, text: str) -> str:
+        if text.lower() not in self.AFFIRMATIVE_WORDS:
+            self.session_manager.clear_session(user_id)
+            return "キャンセルを取りやめました。\nご用件があれば改めて入力してください。"
+
+        ctx = self.session_manager.get_context(user_id)
+        # 本人確認・状態・期限は cancel 側で再度検査される（BureaucraticError は handle_message で捕捉）
+        reservation = self.cancel_ctrl.cancel(ctx["cancel_number"], requester_user_id=user_id)
+
+        self.session_manager.clear_session(user_id)
+        return (
+            "予約をキャンセルしました。\n"
+            f"予約番号: {reservation.reservation_number}\n"
+            "ご利用ありがとうございました。"
+        )
 
     def _parse_requested_rooms(self, text: str) -> dict[str, int]:
         """「Standard 1, Suite 1」形式のテキストを {type_name: count} に変換する"""

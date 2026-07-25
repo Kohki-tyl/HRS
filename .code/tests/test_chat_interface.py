@@ -7,8 +7,8 @@ from datetime import date, timedelta
 
 import pytest
 
-from domain import Hotel, Room, RoomType
-from application import ReservationControl
+from domain import Hotel, Room, RoomType, ReservationStatus
+from application import ReservationControl, CancelControl
 from infrastructure import SQLiteReservationRepository
 from ui import SessionManager, ChatInterface
 
@@ -23,7 +23,8 @@ def chat():
     ])
     repo = SQLiteReservationRepository(":memory:")
     res_ctrl = ReservationControl(repo, hotel)
-    return ChatInterface(res_ctrl, SessionManager()), repo
+    cancel_ctrl = CancelControl(repo)
+    return ChatInterface(res_ctrl, cancel_ctrl, SessionManager()), repo
 
 
 def test_full_reservation_flow(chat):
@@ -103,3 +104,63 @@ def test_confirm_requires_affirmative(chat):
     # 「はい」以外では確定しない
     reply = ci.handle_message(USER, "うーん")
     assert "確定" in reply
+
+
+# ========== キャンセルフロー (UC4) ==========
+
+def _reserve_tomorrow(ci, user=USER):
+    """USER が明日の予約を1件作成し、予約番号を返す"""
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    ci.handle_message(user, "予約")
+    ci.handle_message(user, tomorrow)
+    ci.handle_message(user, "Standard 1")
+    ci.handle_message(user, "山田太郎")
+    reply = ci.handle_message(user, "はい")
+    return int("".join(c for c in reply.split("予約番号: ")[1].split("\n")[0] if c.isdigit()))
+
+
+def test_cancel_flow_success(chat):
+    ci, repo = chat
+    num = _reserve_tomorrow(ci)
+    assert repo.find_by_id(num).status == ReservationStatus.CREATED
+
+    assert "キャンセル" in ci.handle_message(USER, "予約キャンセル")
+    reply = ci.handle_message(USER, str(num))
+    assert "キャンセルします" in reply  # 確認プロンプト
+    done = ci.handle_message(USER, "はい")
+    assert "キャンセルしました" in done
+    assert repo.find_by_id(num).status == ReservationStatus.CANCELLED
+
+
+def test_cancel_rejects_other_user(chat):
+    """他人（別の LINE userId）は本人の予約をキャンセルできない"""
+    ci, repo = chat
+    num = _reserve_tomorrow(ci)  # 予約者は USER
+
+    ci.handle_message("U_other", "予約キャンセル")
+    reply = ci.handle_message("U_other", str(num))
+    assert "見つかりません" in reply
+    # 予約は残っている
+    assert repo.find_by_id(num).status == ReservationStatus.CREATED
+
+
+def test_cancel_decline_keeps_reservation(chat):
+    ci, repo = chat
+    num = _reserve_tomorrow(ci)
+    ci.handle_message(USER, "予約キャンセル")
+    ci.handle_message(USER, str(num))
+    reply = ci.handle_message(USER, "いいえ")
+    assert "取りやめ" in reply
+    assert repo.find_by_id(num).status == ReservationStatus.CREATED
+
+
+def test_cancel_number_non_numeric(chat):
+    ci, _ = chat
+    ci.handle_message(USER, "予約キャンセル")
+    assert "数字" in ci.handle_message(USER, "あ")
+
+
+def test_cancel_not_found(chat):
+    ci, _ = chat
+    ci.handle_message(USER, "予約キャンセル")
+    assert "見つかりません" in ci.handle_message(USER, "999999")

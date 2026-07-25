@@ -74,18 +74,38 @@ def test_check_out_rejects_not_checked_in(status):
 # ========== Reservation.cancel ==========
 
 def test_cancel_success():
-    res = make_reservation(status=ReservationStatus.CREATED)
+    # キャンセルは前日まで可能。宿泊日を未来にする
+    res = make_reservation(status=ReservationStatus.CREATED,
+                           staying_date=date.today() + timedelta(days=2))
     res.cancel()
     assert res.status == ReservationStatus.CANCELLED
+    # 確保していた部屋の該当日が解放されている
+    assert all(room.is_vacant_on(res.staying_date) for room in res.rooms)
 
 
 @pytest.mark.parametrize("status", [
     ReservationStatus.CHECKED_IN, ReservationStatus.COMPLETED, ReservationStatus.CANCELLED,
 ])
 def test_cancel_rejects_non_created(status):
-    res = make_reservation(status=status)
+    res = make_reservation(status=status, staying_date=date.today() + timedelta(days=2))
     with pytest.raises(BureaucraticError):
         res.cancel()
+
+
+def test_cancel_allowed_until_day_before():
+    # 前日（宿泊日は明日）はキャンセル可能
+    res = make_reservation(staying_date=date.today() + timedelta(days=1))
+    res.cancel()
+    assert res.status == ReservationStatus.CANCELLED
+
+
+@pytest.mark.parametrize("staying_date", [date.today(), date.today() - timedelta(days=1)])
+def test_cancel_rejects_on_or_after_staying_date(staying_date):
+    # 宿泊日当日・過去は期限切れでキャンセル不可
+    res = make_reservation(staying_date=staying_date)
+    with pytest.raises(BureaucraticError):
+        res.cancel()
+    assert res.status == ReservationStatus.CREATED
 
 
 # ========== Room の在庫・二重予約 ==========

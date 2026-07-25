@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS reservations (
     reservation_number INTEGER PRIMARY KEY,
     staying_date TEXT NOT NULL,
     guest_name TEXT NOT NULL,
+    guest_line_user_id TEXT,
     payment_amount INTEGER NOT NULL,
     payment_status TEXT NOT NULL,
     reservation_status TEXT NOT NULL
@@ -72,6 +73,10 @@ class SQLiteReservationRepository(ReservationRepository):
         conn = self._get_connection()
         try:
             conn.executescript(SCHEMA_SQL)
+            # 既存 DB への後方互換マイグレーション（列が無ければ追加する）
+            columns = [row[1] for row in conn.execute("PRAGMA table_info(reservations)").fetchall()]
+            if "guest_line_user_id" not in columns:
+                conn.execute("ALTER TABLE reservations ADD COLUMN guest_line_user_id TEXT")
             conn.commit()
         except Exception:
             conn.rollback()
@@ -86,10 +91,11 @@ class SQLiteReservationRepository(ReservationRepository):
             conn.execute(
                 """
                 INSERT INTO reservations
-                (reservation_number, staying_date, guest_name, payment_amount, payment_status, reservation_status)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (reservation_number, staying_date, guest_name, guest_line_user_id, payment_amount, payment_status, reservation_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(reservation_number) DO UPDATE SET
                     guest_name = excluded.guest_name,
+                    guest_line_user_id = excluded.guest_line_user_id,
                     payment_amount = excluded.payment_amount,
                     payment_status = excluded.payment_status,
                     reservation_status = excluded.reservation_status
@@ -98,6 +104,7 @@ class SQLiteReservationRepository(ReservationRepository):
                     reservation.reservation_number,
                     reservation.staying_date.isoformat(),
                     reservation.guest.name,
+                    reservation.guest.line_user_id,
                     reservation.payment.amount,
                     reservation.payment.status.value,
                     reservation.status.value,
@@ -201,7 +208,7 @@ class SQLiteReservationRepository(ReservationRepository):
 
     def _reconstruct_reservation(self, res_row, room_rows) -> Reservation:
         """DBの取得結果からドメインオブジェクト(Entity)を再構築する内部ヘルパー"""
-        guest = Guest(name=res_row["guest_name"])
+        guest = Guest(name=res_row["guest_name"], line_user_id=res_row["guest_line_user_id"])
         payment = Payment(
             amount=int(res_row["payment_amount"]),
             status=PaymentStatus(res_row["payment_status"]),
