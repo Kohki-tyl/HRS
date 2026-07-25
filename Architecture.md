@@ -200,6 +200,8 @@ classDiagram
 
 Reservation エンティティの status の変化を定義する。保守要件である「キャンセル」の導線を予め組み込んでおく (対応する CancelControl はアプリケーション層に受け皿として用意する)。
 
+> キャンセルは「予約をキャンセルする」(UC4) として実装済み。詳細は [Cancel_Feature.md](Cancel_Feature.md) を参照。
+
 ```mermaid
 stateDiagram-v2
     [*] --> CREATED : new Reservation()

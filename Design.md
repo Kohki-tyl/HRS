@@ -314,6 +314,8 @@ stateDiagram-v2
 - `cancel()` は `status == CREATED` の場合のみ受理する。
 - **Payment**: PENDING → PAID (`check_out()` 内)。 **Room**: VACANT ↔ IN_USE (`mark_using()` / `mark_empty()`)。予約日集合 `reserved_dates` は `assign()` / `cancel_assign()` で増減する。
 
+> キャンセルは「予約をキャンセルする」(UC4) として実装済み。本人確認・期限・対話フローの詳細は [Cancel_Feature.md](Cancel_Feature.md) を参照。
+
 ## 2.4 主要シーケンス図
 
 ### SD1. 部屋を予約する (LINE)
