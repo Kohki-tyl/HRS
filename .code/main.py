@@ -15,7 +15,7 @@ from linebot.v3.webhooks import MessageEvent, TextMessageContent
 # 各層のモジュールをインポート
 from domain import Hotel, RoomType, Room
 from infrastructure import SQLiteReservationRepository
-from application import ReservationControl, CheckInControl, CheckOutControl
+from application import ReservationControl, CheckInControl, CheckOutControl, CancelControl
 from ui import SessionManager, ChatInterface, FrontDeskTerminal
 from web_frontdesk import create_frontdesk_app
 
@@ -42,11 +42,12 @@ hotel = Hotel(hotel_name="Grand Hotel", room_types=room_types)
 res_ctrl = ReservationControl(repository, hotel)
 ci_ctrl = CheckInControl(repository)
 co_ctrl = CheckOutControl(repository)
+cancel_ctrl = CancelControl(repository)
 
 # --- プレゼンテーション層 (UI層) ---
-# 予約は利用者が LINE で、チェックイン・チェックアウトは受付係がフロント端末で行う
+# 予約・キャンセルは利用者が LINE で、チェックイン・チェックアウトは受付係がフロント端末で行う
 session_manager = SessionManager()
-chat_interface = ChatInterface(res_ctrl, session_manager)
+chat_interface = ChatInterface(res_ctrl, cancel_ctrl, session_manager)
 front_desk = FrontDeskTerminal(ci_ctrl, co_ctrl)
 
 # 管理者フロントデスク（ログイン・予約一覧・チェックイン/アウト）を含む app を生成。

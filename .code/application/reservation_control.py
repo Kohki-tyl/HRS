@@ -42,7 +42,8 @@ class ReservationControl:
         self,
         staying_date: date,
         guest_name: str,
-        requested_rooms: dict[str, int]
+        requested_rooms: dict[str, int],
+        line_user_id: str | None = None,
     ) -> Reservation:
 
         if staying_date < date.today():
@@ -63,7 +64,7 @@ class ReservationControl:
         reservation = Reservation(
             reservation_number=self._issue_reservation_number(),
             staying_date=staying_date,
-            guest=Guest(name=guest_name),
+            guest=Guest(name=guest_name, line_user_id=line_user_id),
             rooms=assigned_rooms,
             payment=Payment(amount=total_amount)
         )
