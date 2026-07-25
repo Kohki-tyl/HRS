@@ -39,8 +39,8 @@ flowchart TD
         REPO_IF["ReservationRepository «interface»"]
     end
     subgraph I[インフラストラクチャ層 / Infrastructure]
-        REPO_IMPL["MySQLReservationRepository «infra»"]
-        DB[(MySQL Database)]:::ext
+        REPO_IMPL["SQLiteReservationRepository «infra»"]
+        DB[(SQLite Database)]:::ext
     end
 
     LINE -. Webhook（予約） .- CI
@@ -75,7 +75,7 @@ flowchart TD
 | UI層 | LINE Webhook の受付・応答, フロント端末からの受付係操作, 複数ターンに及ぶ LINE 対話セッション (状態) の保持を行う。 |
 | アプリケーション層 | ユースケース (予約・チェックイン・チェックアウト, 保守拡張のキャンセル) の手順を表現する。Repository から予約を復元し, ドメインに処理を命じ, 結果を保存する。 |
 | ドメイン層 | 「空室の確認」「予約・部屋・決済の状態遷移」「一括精算」などのコア業務ルールを持つ。この層は他のどの層もインポートしない。 |
-| インフラ層 | ドメイン層で定義された ReservationRepository の契約に従い, MySQL に対してデータの保存・復元 (SQL 発行) を行う。 |
+| インフラ層 | ドメイン層で定義された ReservationRepository の契約に従い, SQLite に対してデータの保存・復元 (SQL 発行) を行う。 |
 
 ## クラス図
 
@@ -104,6 +104,8 @@ classDiagram
         +save(Reservation) void
         +find_by_id(reservation_number) Reservation
         +find_by_room_number(room_number) Reservation
+        +find_by_staying_date(staying_date) List~Reservation~
+        +find_all() List~Reservation~
     }
     class Guest {
         <<entity>>
@@ -169,11 +171,13 @@ classDiagram
     }
 
     %% Infrastructure Layer
-    class MySQLReservationRepository {
+    class SQLiteReservationRepository {
         <<infra>>
         +save(Reservation) void
         +find_by_id(reservation_number) Reservation
         +find_by_room_number(room_number) Reservation
+        +find_by_staying_date(staying_date) List~Reservation~
+        +find_all() List~Reservation~
     }
 
     %% Relationships
@@ -189,7 +193,7 @@ classDiagram
     Reservation --> ReservationStatus
     Room --> RoomStatus
     Payment --> PaymentStatus
-    MySQLReservationRepository ..|> ReservationRepository
+    SQLiteReservationRepository ..|> ReservationRepository
 ```
 
 ## ステートマシン図
