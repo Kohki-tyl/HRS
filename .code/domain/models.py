@@ -162,12 +162,19 @@ class Reservation:
         self.payment.mark_paid()
         self.status = ReservationStatus.COMPLETED
 
+    def is_within_cancel_period(self) -> bool:
+        """キャンセル可能な期間内か（宿泊日の前日まで）。期限ルールはここに集約する。"""
+        return self.staying_date > date.today()
+
     def cancel(self) -> None:
         if self.status != ReservationStatus.CREATED:
             raise BureaucraticError("チェックイン済み・完了済みの予約はキャンセルできません。")
 
-        # キャンセルは宿泊日の前日まで（当日以降は不可）
-        if self.staying_date <= date.today():
+        # キャンセルは宿泊日の前日まで（当日以降は不可）。
+        # 注: 当日・過去の CREATED（無断不泊 / No-show）は、チェックイン当日ガードと
+        #     このキャンセル期限の間に残る。その処理は本機能の対象外で、将来の
+        #     受付係向けキャンセル導線で扱う想定（Cancel_Feature_Proposal.md 参照）。
+        if not self.is_within_cancel_period():
             raise BureaucraticError("キャンセルはチェックインの前日までにお願いします。")
 
         # 確保していた部屋の該当日を解放する

@@ -7,7 +7,7 @@ ChatInterface へ渡す。main.py の handle_message が行っている処理と
 """
 import sys
 
-from application import ReservationControl
+from application import ReservationControl, CancelControl
 from ui import SessionManager, ChatInterface
 from debug_setup import DB_PATH, build_hotel, build_repository
 
@@ -21,8 +21,9 @@ def main():
     # 空室状況はその都度 DB から判定する（DB引き）ため、起動時の在庫復元は不要
 
     res_ctrl = ReservationControl(repository, hotel)
+    cancel_ctrl = CancelControl(repository)
     session_manager = SessionManager()
-    chat_interface = ChatInterface(res_ctrl, session_manager)
+    chat_interface = ChatInterface(res_ctrl, cancel_ctrl, session_manager)
 
     print("=" * 60)
     print(" HRS 客用チャット（LINE ボット相当 / API 未接続）")

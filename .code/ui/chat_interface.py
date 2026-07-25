@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime
 import hashlib
 import logging
 
@@ -50,7 +50,7 @@ class ChatInterface:
         try:
             if text in self.RESTART_KEYWORDS and state != SessionState.INIT:
                 self.session_manager.clear_session(user_id)
-                return "手続きを中断しました。\n最初からやり直す場合は「予約」と入力してください。"
+                return "手続きを中断しました。\n最初からやり直す場合は「予約」または「予約キャンセル」と入力してください。"
 
             if state == SessionState.INIT:
                 return self._handle_init(user_id, text)
@@ -196,7 +196,7 @@ class ChatInterface:
         if reservation.status != ReservationStatus.CREATED:
             self.session_manager.clear_session(user_id)
             return self._notify_error("この予約はキャンセルできません（すでに手続き済み、またはキャンセル済みです）。")
-        if reservation.staying_date <= date.today():
+        if not reservation.is_within_cancel_period():
             self.session_manager.clear_session(user_id)
             return self._notify_error("キャンセルはチェックインの前日までです。期限を過ぎています。")
 

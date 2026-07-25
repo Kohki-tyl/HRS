@@ -13,22 +13,27 @@ class CancelControl:
     def __init__(self, repository: ReservationRepository):
         self.repository = repository
 
-    def search_reservation(self, reservation_number: int, requester_user_id: Optional[str] = None) -> Optional[Reservation]:
+    def search_reservation(self, reservation_number: int, requester_user_id: Optional[str]) -> Optional[Reservation]:
         """予約番号から予約を照会する。要求者本人の予約でなければ None を返す。
 
         本人でない予約を「見つからない」と同じ扱いにすることで, 予約番号から
         他人の予約情報が漏れることを防ぐ。
+
+        requester_user_id は必須引数とする（省略時に誤って所有者未設定の予約へ
+        一致してしまう事故を防ぐため）。LINE 利用者は自身の userId, 所有者を
+        持たない予約 (受付・デモ等) を対象にする場合は明示的に None を渡す。
         """
         reservation = self.repository.find_by_id(reservation_number)
         if reservation is None or not self._is_owner(reservation, requester_user_id):
             return None
         return reservation
 
-    def cancel(self, reservation_number: int, requester_user_id: Optional[str] = None) -> Reservation:
+    def cancel(self, reservation_number: int, requester_user_id: Optional[str]) -> Reservation:
         """キャンセル処理を実行し、対象の予約を返す。
 
         本人確認 (userId 一致) を行ったうえで, キャンセルを予約へ委譲する。
         状態 (CREATED のみ) と期限 (宿泊日の前日まで) のガードはドメインが送出する。
+        requester_user_id は必須（search_reservation と同じ理由）。
         """
         reservation = self.repository.find_by_id(reservation_number)
         if reservation is None or not self._is_owner(reservation, requester_user_id):
