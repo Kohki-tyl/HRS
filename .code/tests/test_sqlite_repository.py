@@ -2,6 +2,7 @@
 
 実際に SQL を発行して保存・検索・復元の振る舞いを検証する。
 """
+import sqlite3
 from datetime import date
 
 import pytest
@@ -98,3 +99,52 @@ def test_find_by_room_number_none_after_checkout(repo):
         payment_status=PaymentStatus.PAID,
     ))
     assert repo.find_by_room_number(101) is None
+
+
+# ========== 既存 DB のマイグレーション（guest_line_user_id 列の追加）==========
+
+def test_migration_adds_guest_line_user_id_column(tmp_path):
+    """列導入前の旧スキーマ DB に対し、初期化時に列が追加され、旧予約は所有者 NULL になる"""
+    db = str(tmp_path / "old.db")
+
+    # 旧スキーマ（guest_line_user_id 列なし）を手動で作成し、旧予約を1件入れる
+    conn = sqlite3.connect(db)
+    conn.executescript(
+        """
+        CREATE TABLE reservations (
+            reservation_number INTEGER PRIMARY KEY,
+            staying_date TEXT NOT NULL,
+            guest_name TEXT NOT NULL,
+            payment_amount INTEGER NOT NULL,
+            payment_status TEXT NOT NULL,
+            reservation_status TEXT NOT NULL
+        );
+        CREATE TABLE reservation_rooms (
+            reservation_number INTEGER NOT NULL,
+            room_number INTEGER NOT NULL,
+            PRIMARY KEY (reservation_number, room_number)
+        );
+        """
+    )
+    conn.execute(
+        "INSERT INTO reservations VALUES (?, ?, ?, ?, ?, ?)",
+        (500001, "2026-07-01", "旧太郎", 10000, "Pending", "Created"),
+    )
+    conn.execute("INSERT INTO reservation_rooms VALUES (?, ?)", (500001, 101))
+    conn.commit()
+    conn.close()
+
+    # リポジトリ生成時のスキーマ初期化でマイグレーションが走る
+    repo = SQLiteReservationRepository(db)
+
+    # 列が追加されている
+    check = sqlite3.connect(db)
+    cols = [r[1] for r in check.execute("PRAGMA table_info(reservations)").fetchall()]
+    check.close()
+    assert "guest_line_user_id" in cols
+
+    # 旧予約は所有者 NULL（= LINE セルフキャンセル対象外）として復元される
+    loaded = repo.find_by_id(500001)
+    assert loaded is not None
+    assert loaded.guest.name == "旧太郎"
+    assert loaded.guest.line_user_id is None

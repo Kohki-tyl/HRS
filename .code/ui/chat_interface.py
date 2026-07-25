@@ -1,4 +1,5 @@
 from datetime import datetime, date
+import hashlib
 import logging
 
 from domain import BureaucraticError, ReservationStatus
@@ -6,6 +7,18 @@ from application import ReservationControl, CancelControl
 from .session_manager import SessionManager, SessionState
 
 logger = logging.getLogger(__name__)
+
+
+def _mask_user_id(user_id: str) -> str:
+    """LINE userId をログへ全文出力しないためのマスク表現を返す。
+
+    個人を直接特定できないよう, SHA-256 の先頭のみを用いる。ログ間の突き合わせ
+    (同一ユーザの追跡) はできるが, 元の userId は復元できない。
+    """
+    if not user_id:
+        return "(none)"
+    digest = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+    return f"uid:{digest[:8]}"
 
 class ChatInterface:
     """LINEボットの対話管理とアプリケーション層へのルーティングを担うバウンダリ
@@ -55,7 +68,7 @@ class ChatInterface:
                 return self._handle_cancel_confirm(user_id, text)
             else:
                 # 未知の状態に陥った場合はセッションを捨てて案内に戻す
-                logger.warning("未知のセッション状態です: user_id=%s, state=%s", user_id, state)
+                logger.warning("未知のセッション状態です: user=%s, state=%s", _mask_user_id(user_id), state)
                 self.session_manager.clear_session(user_id)
                 return self._notify_error("セッションが不正な状態になりました。最初からやり直してください。")
 
@@ -63,7 +76,7 @@ class ChatInterface:
             self.session_manager.clear_session(user_id)
             return self._notify_error(str(e))
         except Exception:
-            logger.exception("予約対話の処理中に予期しない例外が発生しました: user_id=%s", user_id)
+            logger.exception("予約対話の処理中に予期しない例外が発生しました: user=%s", _mask_user_id(user_id))
             self.session_manager.clear_session(user_id)
             return self._notify_error("システムエラーが発生しました。")
 

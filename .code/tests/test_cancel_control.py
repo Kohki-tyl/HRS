@@ -60,6 +60,27 @@ def test_cancel_not_found(repo):
         CancelControl(repo).cancel(999999, requester_user_id=OWNER)
 
 
+def test_existing_reservation_without_owner_cannot_be_line_cancelled(repo):
+    """line_user_id を持たない既存予約（移行前相当）は LINE 利用者からキャンセル不可"""
+    save_reservation(repo, 100010, line_user_id=None)
+    cc = CancelControl(repo)
+
+    with pytest.raises(BureaucraticError):
+        cc.cancel(100010, requester_user_id="U_someone")
+    assert repo.find_by_id(100010).status == ReservationStatus.CREATED
+
+    # 照会も「見つからない」扱い（存在を推測させない）
+    assert cc.search_reservation(100010, requester_user_id="U_someone") is None
+
+
+def test_not_found_and_wrong_owner_return_same_search_result(repo):
+    """該当なしと本人不一致は、外部（照会）応答が区別できない（どちらも None）"""
+    save_reservation(repo, 100011, line_user_id=OWNER)
+    cc = CancelControl(repo)
+    assert cc.search_reservation(999999, requester_user_id=OTHER) is None   # 該当なし
+    assert cc.search_reservation(100011, requester_user_id=OTHER) is None   # 本人不一致
+
+
 def test_cannot_cancel_after_checkin(repo):
     save_reservation(repo, 100004, status=ReservationStatus.CHECKED_IN)
     with pytest.raises(BureaucraticError):
