@@ -83,6 +83,19 @@ def test_room_selection_format_error(chat):
     assert "形式" in reply
 
 
+def test_room_selection_options_follow_available_stock(chat):
+    ci, _ = chat
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    ci.handle_message(USER, "予約")
+    ci.handle_message(USER, tomorrow)
+
+    assert ci.get_room_selection_options(USER) == [
+        ("Standard", 1),
+        ("Standard", 2),
+        ("Suite", 1),
+    ]
+
+
 def test_cancel_keyword_resets(chat):
     ci, _ = chat
     tomorrow = (date.today() + timedelta(days=1)).isoformat()
@@ -91,7 +104,7 @@ def test_cancel_keyword_resets(chat):
     reply = ci.handle_message(USER, "キャンセル")
     assert "中断" in reply
     # リセット後、初期状態から予約を開始できる
-    assert "宿泊希望日" in ci.handle_message(USER, "予約")
+    assert "宿泊日を選択" in ci.handle_message(USER, "予約")
 
 
 def test_confirm_requires_affirmative(chat):
@@ -126,6 +139,8 @@ def test_cancel_flow_success(chat):
 
     assert "キャンセル" in ci.handle_message(USER, "予約キャンセル")
     reply = ci.handle_message(USER, str(num))
+    assert "本人確認" in reply
+    reply = ci.handle_message(USER, "山田太郎")
     assert "キャンセルします" in reply  # 確認プロンプト
     done = ci.handle_message(USER, "はい")
     assert "キャンセルしました" in done
@@ -149,6 +164,7 @@ def test_cancel_decline_keeps_reservation(chat):
     num = _reserve_tomorrow(ci)
     ci.handle_message(USER, "予約キャンセル")
     ci.handle_message(USER, str(num))
+    ci.handle_message(USER, "山田太郎")
     reply = ci.handle_message(USER, "いいえ")
     assert "取りやめ" in reply
     assert repo.find_by_id(num).status == ReservationStatus.CREATED
@@ -164,3 +180,58 @@ def test_cancel_not_found(chat):
     ci, _ = chat
     ci.handle_message(USER, "予約キャンセル")
     assert "見つかりません" in ci.handle_message(USER, "999999")
+
+
+def test_confirmation_shows_total_amount(chat):
+    ci, _ = chat
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    ci.handle_message(USER, "予約")
+    ci.handle_message(USER, tomorrow)
+    ci.handle_message(USER, "Standard 1, Suite 1")
+
+    reply = ci.handle_message(USER, "山田太郎")
+
+    assert "合計金額" in reply
+    assert "60,000円" in reply
+
+
+def test_reservation_confirmation_lists_only_requester(chat):
+    ci, _ = chat
+    own_number = _reserve_tomorrow(ci, USER)
+    _reserve_tomorrow(ci, "U_other")
+
+    reply = ci.handle_message(USER, "予約確認")
+
+    assert str(own_number) in reply
+    assert reply.count("予約番号:") == 1
+
+
+def test_cancel_requires_matching_name(chat):
+    ci, repo = chat
+    num = _reserve_tomorrow(ci)
+    ci.handle_message(USER, "予約キャンセル")
+    assert "本人確認" in ci.handle_message(USER, str(num))
+
+    reply = ci.handle_message(USER, "別人の名前")
+
+    assert "一致しません" in reply
+    assert repo.find_by_id(num).status == ReservationStatus.CREATED
+
+
+def test_menu_command_switches_active_flow_without_double_confirmation(chat):
+    ci, _ = chat
+    ci.handle_message(USER, "予約キャンセル")
+
+    reply = ci.handle_message(USER, "予約確認")
+
+    assert "ご予約は見つかりません" in reply
+
+
+def test_cancel_candidates_only_include_owned_cancellable_reservations(chat):
+    ci, _ = chat
+    own_number = _reserve_tomorrow(ci, USER)
+    _reserve_tomorrow(ci, "U_other")
+
+    candidates = ci.get_cancellable_reservations(USER)
+
+    assert [reservation.reservation_number for reservation in candidates] == [own_number]

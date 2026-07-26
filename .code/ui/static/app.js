@@ -179,9 +179,9 @@ function buildTable(rows, viewKey, { onRowClick, action }) {
 
     sorted.forEach(r => {
         h += `<tr class="clickable-row" onclick="${onRowClick}(${r.reservation_number})">`;
-        COLUMNS.forEach(c => { h += `<td>${c.cell(r)}</td>`; });
+        COLUMNS.forEach(c => { h += `<td data-label="${escapeHtml(c.label)}">${c.cell(r)}</td>`; });
         if (action) {
-            h += `<td class="action-cell"><button class="btn-sm ${action.cls}" onclick="event.stopPropagation(); ${action.fn}(${r.reservation_number})">${action.label}</button></td>`;
+            h += `<td class="action-cell" data-label="操作"><button class="btn-sm ${action.cls}" onclick="event.stopPropagation(); ${action.fn}(${r.reservation_number})">${action.label}</button></td>`;
         }
         h += '</tr>';
     });
@@ -302,19 +302,20 @@ function renderCheckout() {
     }
     const rows = checkoutData.filter(r => matchAttr(r, attr, q));
     el('checkout-list').innerHTML = rows.length
-        ? buildTable(rows, 'co', { onRowClick: 'openCheckoutDetail', action: { label: 'チェックアウト', cls: 'btn-success', fn: 'askCheckOut' } })
+        ? buildTable(rows, 'co', { onRowClick: 'openCheckoutDetail', action: { label: 'チェックアウト', cls: 'btn-danger', fn: 'askCheckOut' } })
         : '<p class="placeholder">該当する予約がありません</p>';
 }
 
 function openCheckoutDetail(n) {
     const res = checkoutData.find(r => r.reservation_number === n);
-    if (res) openModal(res, 'チェックアウト', [{ label: 'チェックアウトを確定', cls: 'btn-success', onclick: () => askCheckOut(n) }]);
+    if (res) openModal(res, 'チェックアウト', [{ label: 'チェックアウトを確定', cls: 'btn-danger', onclick: () => askCheckOut(n) }]);
 }
 
 function askCheckOut(n) {
     const res = checkoutData.find(r => r.reservation_number === n);
     const room = res ? (res.room_numbers || [])[0] : '';
-    askConfirm(`部屋番号 ${room}（予約番号 ${n}）をチェックアウトします。よろしいですか？`, () => doCheckOut(n, room));
+    const amount = res ? Number(res.total_amount || 0).toLocaleString('ja-JP') : '0';
+    askConfirm(`部屋番号 ${room}（予約番号 ${n}）をチェックアウトします。\n請求額: ${amount}円\n\n支払いを確認して実行してください。`, () => doCheckOut(n, room), 'btn-danger');
 }
 
 async function doCheckOut(n, room) {
@@ -323,7 +324,11 @@ async function doCheckOut(n, room) {
         const result = await apiCall('/front/check-out/confirm', 'POST', { room_number: room });
         const message = result.message || '';
         if (message.includes('【エラー】')) toast(message.replace('【エラー】', ''), 'error');
-        else toast('チェックアウトが完了しました。', 'success');
+        else {
+            const res = checkoutData.find(r => r.reservation_number === n);
+            const amount = Number(res?.total_amount || 0).toLocaleString('ja-JP');
+            toast(`チェックアウトが完了しました。請求額: ${amount}円`, 'success');
+        }
         closeModal();
         loadCheckoutCandidates();
     } catch (error) {
@@ -361,9 +366,11 @@ function openModal(res, title, actions) {
 }
 function closeModal() { el('detail-modal').classList.add('hidden'); }
 
-function askConfirm(text, onYes) {
+function askConfirm(text, onYes, confirmClass = 'btn-success') {
     el('confirm-text').textContent = text;
-    el('confirm-yes').onclick = () => { closeConfirm(); onYes(); };
+    const yesButton = el('confirm-yes');
+    yesButton.className = `btn ${confirmClass}`;
+    yesButton.onclick = () => { closeConfirm(); onYes(); };
     el('confirm-modal').classList.remove('hidden');
 }
 function closeConfirm() { el('confirm-modal').classList.add('hidden'); }

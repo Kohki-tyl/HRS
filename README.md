@@ -76,7 +76,16 @@ python debug_front.py    # 受付係（チェックイン・チェックアウ�
 
 ### 6. 本番相当（LINE Webhook 込み）で起動する
 
-LINE と実際に連携する場合は、依存関係のインストールに加えて Channel の秘密情報を環境変数で与える。
+LINE と実際に連携する場合は、依存関係のインストールに加えて Channel の秘密情報を与える。ルートの `.env.example`（Git 管理対象）を `.env`（Git 管理対象外）へコピーして編集し、`--env-file` で読み込ませる方法を推奨する。
+
+```powershell
+Copy-Item .env.example .env
+# .env を編集して Channel access token / Channel secret を設定
+cd .code
+python -m uvicorn main:app --env-file ../.env --reload --host 0.0.0.0 --port 8000
+```
+
+環境変数を直接与えてもよい。
 
 ```powershell
 cd .code
@@ -99,7 +108,7 @@ uvicorn main:app --reload
 | `LINE_CHANNEL_ACCESS_TOKEN` | LINE Messaging API のアクセストークン（LINE 連携時のみ） | （未設定） |
 | `LINE_CHANNEL_SECRET` | LINE Webhook の署名検証用シークレット（LINE 連携時のみ） | （未設定） |
 
-`.env.example` を参考に設定できる。`.env` 自体は自動読み込みされないため、上記のように環境変数として与えるか、デプロイ先の秘密情報管理へ登録する。
+ルートの `.env.example` をコピーして `.env` を作り、上記のように `--env-file ../.env` で読み込ませるか、PowerShell の環境変数として直接与える。`.env` はアプリ側で自動読み込みされないため、`--env-file` を付けない起動方法では環境変数として設定するか、デプロイ先の秘密情報管理へ登録すること。`.env` は Git 管理対象外であり、秘密情報を Issue や Pull Request に貼らないこと。
 
 ---
 
@@ -118,6 +127,8 @@ LINE 公式アカウント、Webhook、Channel secret、Channel access token の
 | [Design.md](Design.md) | 詳細設計（型付きクラス図・状態遷移・シーケンス図） |
 | [Cancel_Feature.md](Cancel_Feature.md) | 予約キャンセル機能（UC4）の仕様・設計・実装（集約） |
 | [Cancel_Feature_Proposal.md](Cancel_Feature_Proposal.md) | 予約キャンセル機能の提案（検討の経緯） |
+| [E2E_Test_Checklist.md](E2E_Test_Checklist.md) | 実機テスト（LINE〜管理者画面）のチェックリスト |
+| [E2E_Test_Report_2026-07-26.md](E2E_Test_Report_2026-07-26.md) | 実機テストの実施結果 |
 | [.code/code_structure.md](.code/code_structure.md) | 実装のディレクトリ構成 |
 | [TODO.md](TODO.md) | 今後の対応項目 |
 

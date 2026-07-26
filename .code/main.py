@@ -1,4 +1,5 @@
 import os
+from datetime import date, timedelta
 from pathlib import Path
 from fastapi import Request, HTTPException
 from linebot.v3 import WebhookHandler
@@ -9,14 +10,18 @@ from linebot.v3.messaging import (
     MessagingApi,
     ReplyMessageRequest,
     TextMessage,
+    QuickReply,
+    QuickReplyItem,
+    MessageAction,
+    DatetimePickerAction,
 )
-from linebot.v3.webhooks import MessageEvent, TextMessageContent
+from linebot.v3.webhooks import FollowEvent, MessageEvent, PostbackEvent, TextMessageContent
 
 # 各層のモジュールをインポート
 from domain import Hotel, RoomType, Room
 from infrastructure import SQLiteReservationRepository
 from application import ReservationControl, CheckInControl, CheckOutControl, CancelControl
-from ui import SessionManager, ChatInterface, FrontDeskTerminal
+from ui import SessionManager, SessionState, ChatInterface, FrontDeskTerminal
 from web_frontdesk import create_frontdesk_app
 
 # ==========================================
@@ -115,11 +120,95 @@ def handle_message(event):
     # 構築したChatInterface（UI層）に処理を委譲して、返信テキストを取得
     reply_text = chat_interface.handle_message(user_id, user_text)
 
-    # LINEユーザーへ結果を返信
+    _reply_text(event.reply_token, user_id, reply_text)
+
+
+@handler.add(PostbackEvent)
+def handle_postback(event):
+    """日付選択アクションの結果を予約対話へ渡す。"""
+    user_id = event.source.user_id
+    params = event.postback.params or {}
+    selected_date = params.get("date")
+    if event.postback.data != "action=select_staying_date" or not selected_date:
+        reply_text = chat_interface.initial_guidance()
+    else:
+        reply_text = chat_interface.handle_message(user_id, selected_date)
+    _reply_text(event.reply_token, user_id, reply_text)
+
+
+@handler.add(FollowEvent)
+def handle_follow(event):
+    """友だち追加時に機能案内と操作ボタンを表示する。"""
+    user_id = event.source.user_id
+    session_manager.clear_session(user_id)
+    _reply_text(event.reply_token, user_id, chat_interface.initial_guidance())
+
+
+def _reply_text(reply_token: str, user_id: str, reply_text: str) -> None:
+    """会話状態に合ったクイックリプライを付けて返信する。"""
+    message = TextMessage(text=reply_text, quick_reply=_quick_reply_for(user_id))
     with ApiClient(line_configuration) as api_client:
         MessagingApi(api_client).reply_message(
             ReplyMessageRequest(
-                reply_token=event.reply_token,
-                messages=[TextMessage(text=reply_text)],
+                reply_token=reply_token,
+                messages=[message],
             )
         )
+
+
+def _quick_reply_for(user_id: str) -> QuickReply:
+    state = session_manager.get_state(user_id)
+    if state == SessionState.RES_AWAITING_DATE:
+        today = date.today()
+        return QuickReply(items=[
+            QuickReplyItem(action=DatetimePickerAction(
+                label="宿泊日を選択",
+                data="action=select_staying_date",
+                mode="date",
+                initial=(today + timedelta(days=1)).isoformat(),
+                min=today.isoformat(),
+                max=(today + timedelta(days=365)).isoformat(),
+            )),
+            QuickReplyItem(action=MessageAction(label="中止", text="キャンセル")),
+        ])
+    if state == SessionState.RES_AWAITING_ROOMS_SELECTION:
+        options = chat_interface.get_room_selection_options(user_id)
+        items = [
+            QuickReplyItem(action=MessageAction(
+                label=f"{type_name} {count}室",
+                text=f"{type_name} {count}",
+            ))
+            for type_name, count in options[:12]
+        ]
+        items.append(QuickReplyItem(action=MessageAction(label="中止", text="キャンセル")))
+        return QuickReply(items=items)
+    if state == SessionState.RES_AWAITING_CONFIRM:
+        return QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="予約を確定", text="はい")),
+            QuickReplyItem(action=MessageAction(label="予約を中止", text="キャンセル")),
+        ])
+    if state == SessionState.CANCEL_AWAITING_CONFIRM:
+        return QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="キャンセルを確定", text="はい")),
+            QuickReplyItem(action=MessageAction(label="取りやめる", text="いいえ")),
+        ])
+    if state == SessionState.CANCEL_AWAITING_RES_NUM:
+        reservations = chat_interface.get_cancellable_reservations(user_id)
+        items = [
+            QuickReplyItem(action=MessageAction(
+                label=f"{reservation.staying_date:%m/%d} #{reservation.reservation_number}",
+                text=str(reservation.reservation_number),
+            ))
+            for reservation in reservations[:12]
+        ]
+        items.append(QuickReplyItem(action=MessageAction(label="中止", text="キャンセル")))
+        return QuickReply(items=items)
+    if state == SessionState.INIT:
+        return QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="予約", text="予約")),
+            QuickReplyItem(action=MessageAction(label="予約確認", text="予約確認")),
+            QuickReplyItem(action=MessageAction(label="予約キャンセル", text="予約キャンセル")),
+        ])
+    return QuickReply(items=[
+        QuickReplyItem(action=MessageAction(label="手続きを中止", text="キャンセル")),
+    ])
