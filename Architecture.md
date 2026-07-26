@@ -19,14 +19,15 @@ flowchart TD
     FRONT([フロント端末 / 受付係]):::ext
 
     subgraph P[プレゼンテーション層 / UI]
-        CI["ChatInterface «boundary»"]
+        CI["ChatInterface «boundary»（LINE・予約/キャンセル）"]
+        FD["FrontDeskTerminal «boundary»（受付・チェックイン/アウト）"]
         SM["SessionManager (LINE対話状態管理)"]
     end
     subgraph A[アプリケーション層 / Application]
         RC["ReservationControl «control»"]
         KC["CheckInControl «control»"]
         OC["CheckOutControl «control»"]
-        CC["CancelControl «control»（保守拡張）"]
+        CC["CancelControl «control»"]
     end
     subgraph D[ドメイン層 / Domain]
         GU["Guest «entity»"]
@@ -39,17 +40,17 @@ flowchart TD
         REPO_IF["ReservationRepository «interface»"]
     end
     subgraph I[インフラストラクチャ層 / Infrastructure]
-        REPO_IMPL["MySQLReservationRepository «infra»"]
-        DB[(MySQL Database)]:::ext
+        REPO_IMPL["SQLiteReservationRepository «infra»"]
+        DB[(SQLite Database)]:::ext
     end
 
-    LINE -. Webhook（予約） .- CI
-    FRONT -. 操作（チェックイン/アウト） .- CI
+    LINE -. Webhook（予約・キャンセル） .- CI
+    FRONT -. 操作（チェックイン/アウト・予約一覧） .- FD
     CI --> SM
     CI --> RC
-    CI --> KC
-    CI --> OC
     CI --> CC
+    FD --> KC
+    FD --> OC
 
     RC --> HT
     RC --> REPO_IF
@@ -73,9 +74,9 @@ flowchart TD
 | パッケージ | 役割 |
 | --- | --- |
 | UI層 | LINE Webhook の受付・応答, フロント端末からの受付係操作, 複数ターンに及ぶ LINE 対話セッション (状態) の保持を行う。 |
-| アプリケーション層 | ユースケース (予約・チェックイン・チェックアウト, 保守拡張のキャンセル) の手順を表現する。Repository から予約を復元し, ドメインに処理を命じ, 結果を保存する。 |
+| アプリケーション層 | ユースケース (予約・チェックイン・チェックアウト・キャンセル) の手順を表現する。Repository から予約を復元し, ドメインに処理を命じ, 結果を保存する。 |
 | ドメイン層 | 「空室の確認」「予約・部屋・決済の状態遷移」「一括精算」などのコア業務ルールを持つ。この層は他のどの層もインポートしない。 |
-| インフラ層 | ドメイン層で定義された ReservationRepository の契約に従い, MySQL に対してデータの保存・復元 (SQL 発行) を行う。 |
+| インフラ層 | ドメイン層で定義された ReservationRepository の契約に従い, SQLite に対してデータの保存・復元 (SQL 発行) を行う。 |
 
 ## クラス図
 
@@ -97,6 +98,11 @@ classDiagram
         <<control>>
         +check_out(room_number) void
     }
+    class CancelControl {
+        <<control>>
+        +search_reservation(reservation_number, requester_user_id) Reservation
+        +cancel(reservation_number, requester_user_id) Reservation
+    }
 
     %% Domain Layer
     class ReservationRepository {
@@ -104,10 +110,13 @@ classDiagram
         +save(Reservation) void
         +find_by_id(reservation_number) Reservation
         +find_by_room_number(room_number) Reservation
+        +find_by_staying_date(staying_date) List~Reservation~
+        +find_all() List~Reservation~
     }
     class Guest {
         <<entity>>
         -name: str
+        -line_user_id: str
     }
     class Hotel {
         <<entity>>
@@ -140,6 +149,7 @@ classDiagram
         -status: ReservationStatus
         +mark_checked_in() void
         +check_out() void
+        +is_within_cancel_period() bool
         +cancel() void
         +get_amount() int
     }
@@ -169,11 +179,13 @@ classDiagram
     }
 
     %% Infrastructure Layer
-    class MySQLReservationRepository {
+    class SQLiteReservationRepository {
         <<infra>>
         +save(Reservation) void
         +find_by_id(reservation_number) Reservation
         +find_by_room_number(room_number) Reservation
+        +find_by_staying_date(staying_date) List~Reservation~
+        +find_all() List~Reservation~
     }
 
     %% Relationships
@@ -181,6 +193,7 @@ classDiagram
     ReservationControl --> Hotel
     CheckInControl ..> ReservationRepository
     CheckOutControl ..> ReservationRepository
+    CancelControl ..> ReservationRepository
     Hotel "1" *-- "*" RoomType
     RoomType "1" o-- "*" Room
     Guest "1" -- "*" Reservation
@@ -189,12 +202,14 @@ classDiagram
     Reservation --> ReservationStatus
     Room --> RoomStatus
     Payment --> PaymentStatus
-    MySQLReservationRepository ..|> ReservationRepository
+    SQLiteReservationRepository ..|> ReservationRepository
 ```
 
 ## ステートマシン図
 
-Reservation エンティティの status の変化を定義する。保守要件である「キャンセル」の導線を予め組み込んでおく (対応する CancelControl はアプリケーション層に受け皿として用意する)。
+Reservation エンティティの status の変化を定義する。CREATED → CANCELLED の導線は, アプリケーション層の `CancelControl` が担う。
+
+> キャンセルは「予約をキャンセルする」(UC4) として実装済み。本人確認・期限・対話フローの詳細は [Cancel_Feature.md](Cancel_Feature.md) を参照。
 
 ```mermaid
 stateDiagram-v2
