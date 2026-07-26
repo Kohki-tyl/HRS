@@ -14,3 +14,4 @@ venv/
 .code/hrs_debug.db
 .code/hrs_debug_web.db
 *.db-journal
+.mcp.json
