@@ -17,6 +17,7 @@ class SessionState(Enum):
 
     # キャンセルフロー (UC4) のステータス
     CANCEL_AWAITING_RES_NUM = "CANCEL_AWAITING_RES_NUM"
+    CANCEL_AWAITING_NAME = "CANCEL_AWAITING_NAME"
     CANCEL_AWAITING_CONFIRM = "CANCEL_AWAITING_CONFIRM"
 
 class SessionManager:

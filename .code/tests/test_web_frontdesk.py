@@ -48,8 +48,16 @@ def test_front_page_and_assets_served(env):
     assert page.status_code == 200
     assert "フロントデスク" in page.text
     # 画面が参照する静的ファイルが配信される
-    assert client.get("/static/app.js").status_code == 200
-    assert client.get("/static/style.css").status_code == 200
+    script = client.get("/static/app.js")
+    style = client.get("/static/style.css")
+    assert script.status_code == 200
+    assert style.status_code == 200
+    # チェックアウトは危険操作として赤色にし、確定前後に請求額を表示する
+    assert "btn-danger" in script.text
+    assert "請求額:" in script.text
+    # スマートフォンでは表をカード表示へ切り替える
+    assert "content: attr(data-label)" in style.text
+    assert "grid-template-columns: 1fr" in style.text
 
 
 # ========== 予約一覧 ==========

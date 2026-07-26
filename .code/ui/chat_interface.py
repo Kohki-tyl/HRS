@@ -31,6 +31,13 @@ class ChatInterface:
     RESTART_KEYWORDS = ("キャンセル", "中止", "やめる", "やり直し")
     # 確定を表す入力
     AFFIRMATIVE_WORDS = ("はい", "確定", "ok", "yes", "y")
+    MENU_COMMANDS = ("予約", "予約確認", "予約キャンセル")
+    RESERVATION_STATES = (
+        SessionState.RES_AWAITING_DATE,
+        SessionState.RES_AWAITING_ROOMS_SELECTION,
+        SessionState.RES_AWAITING_NAME,
+        SessionState.RES_AWAITING_CONFIRM,
+    )
 
     def __init__(
         self,
@@ -48,9 +55,16 @@ class ChatInterface:
         state = self.session_manager.get_state(user_id)
 
         try:
+            # メニューボタンはどの状態からでも新しい機能へ切り替えられる。
+            if text in self.MENU_COMMANDS and state != SessionState.INIT:
+                self.session_manager.clear_session(user_id)
+                return self._handle_init(user_id, text)
+
+            # 「キャンセル」は予約入力中の中断だけに使う。予約キャンセル手続き内の
+            # 「いいえ」と混同して二重確認にならないよう、対象状態を限定する。
             if text in self.RESTART_KEYWORDS and state != SessionState.INIT:
                 self.session_manager.clear_session(user_id)
-                return "手続きを中断しました。\n最初からやり直す場合は「予約」または「予約キャンセル」と入力してください。"
+                return "手続きを中断しました。\n下のメニューから次の操作を選んでください。"
 
             if state == SessionState.INIT:
                 return self._handle_init(user_id, text)
@@ -64,6 +78,8 @@ class ChatInterface:
                 return self._handle_confirm(user_id, text)
             elif state == SessionState.CANCEL_AWAITING_RES_NUM:
                 return self._handle_cancel_number(user_id, text)
+            elif state == SessionState.CANCEL_AWAITING_NAME:
+                return self._handle_cancel_name(user_id, text)
             elif state == SessionState.CANCEL_AWAITING_CONFIRM:
                 return self._handle_cancel_confirm(user_id, text)
             else:
@@ -84,20 +100,23 @@ class ChatInterface:
     # 1. 初期状態（機能のルーティング）
     # ==========================================
     def _handle_init(self, user_id: str, text: str) -> str:
-        # 「予約キャンセル」なども拾えるよう、キャンセルを予約より先に判定する
-        if "キャンセル" in text:
+        if text == "予約キャンセル":
             self.session_manager.update_state(user_id, SessionState.CANCEL_AWAITING_RES_NUM)
             return (
                 "予約のキャンセルですね。\n"
-                "キャンセルする予約番号（数字）を入力してください。"
+                "下の一覧からキャンセルする予約を選んでください。\n"
+                "予約番号（数字）を直接入力することもできます。"
             )
 
-        if "予約" in text:
+        if text == "予約確認":
+            return self._notify_reservations(user_id)
+
+        if text == "予約":
             self.session_manager.update_state(user_id, SessionState.RES_AWAITING_DATE)
             return (
                 "ご予約ですね。\n"
-                "宿泊希望日を「YYYY-MM-DD」の形式で入力してください。\n"
-                "（例: 2026-07-01）"
+                "下の「宿泊日を選択」から日付を選んでください。\n"
+                "「YYYY-MM-DD」形式で直接入力することもできます。"
             )
 
         if "チェックイン" in text or "チェックアウト" in text:
@@ -106,7 +125,16 @@ class ChatInterface:
                 "ご到着の際は、予約番号をフロントにお伝えください。"
             )
 
-        return "ご用件を「予約」または「予約キャンセル」と入力してください。"
+        return self.initial_guidance()
+
+    def initial_guidance(self) -> str:
+        return (
+            "HRSホテル予約サービスへようこそ。\n\n"
+            "・予約: 空室を検索して新しく予約します\n"
+            "・予約確認: ご自身の予約を確認します\n"
+            "・予約キャンセル: 予約を取り消します\n\n"
+            "下のメニューからご希望の操作を選んでください。"
+        )
 
     # ==========================================
     # 2. 予約フロー (UC1)
@@ -130,6 +158,7 @@ class ChatInterface:
             )
 
         self.session_manager.update_context(user_id, "staying_date", staying_date)
+        self.session_manager.update_context(user_id, "available_stocks", stocks)
         self.session_manager.update_state(user_id, SessionState.RES_AWAITING_ROOMS_SELECTION)
         return self._notify_room_detail(staying_date, stocks)
 
@@ -152,11 +181,13 @@ class ChatInterface:
 
         ctx = self.session_manager.get_context(user_id)
         rooms_text = "、".join(f"{name} {count}室" for name, count in ctx["requested_rooms"].items())
+        amount = self.res_ctrl.calculate_amount(ctx["requested_rooms"])
         return (
             "以下の内容でご予約を承ります。\n"
             f"宿泊日: {ctx['staying_date']}\n"
             f"お部屋: {rooms_text}\n"
-            f"お名前: {ctx['guest_name']} 様\n\n"
+            f"お名前: {ctx['guest_name']} 様\n"
+            f"合計金額: {amount:,}円\n\n"
             "よろしければ「はい」、取り消す場合は「キャンセル」と入力してください。"
         )
 
@@ -201,6 +232,16 @@ class ChatInterface:
             return self._notify_error("キャンセルはチェックインの前日までです。期限を過ぎています。")
 
         self.session_manager.update_context(user_id, "cancel_number", reservation_number)
+        self.session_manager.update_state(user_id, SessionState.CANCEL_AWAITING_NAME)
+        return "本人確認のため、ご予約時のお名前を入力してください。"
+
+    def _handle_cancel_name(self, user_id: str, text: str) -> str:
+        ctx = self.session_manager.get_context(user_id)
+        reservation = self.cancel_ctrl.search_reservation(ctx["cancel_number"], requester_user_id=user_id)
+        if not reservation or not reservation.guest or reservation.guest.name.strip() != text.strip():
+            self.session_manager.clear_session(user_id)
+            return self._notify_error("予約番号またはお名前が一致しません。")
+
         self.session_manager.update_state(user_id, SessionState.CANCEL_AWAITING_CONFIRM)
         rooms_text = ", ".join(map(str, reservation.get_room_numbers()))
         return (
@@ -248,7 +289,8 @@ class ChatInterface:
         )
         return (
             f"{staying_date} の空室状況です。\n{stock_text}\n\n"
-            "希望する部屋と数をカンマ区切りで入力してください。\n"
+            "下のボタンから希望する部屋タイプと室数を選んでください。\n"
+            "複数タイプを組み合わせる場合は、カンマ区切りで直接入力できます。\n"
             "（例: Standard 1, Suite 1）"
         )
 
@@ -259,6 +301,47 @@ class ChatInterface:
             f"料金: {reservation.get_amount()}円\n\n"
             "ご到着の際は、フロントにて予約番号をお伝えください。"
         )
+
+    def _notify_reservations(self, user_id: str) -> str:
+        reservations = self.res_ctrl.find_reservations_by_line_user_id(user_id)
+        if not reservations:
+            return "ご予約は見つかりませんでした。\n新しい予約は下のメニューからお申し込みいただけます。"
+
+        status_labels = {
+            ReservationStatus.CREATED: "予約済み",
+            ReservationStatus.CHECKED_IN: "チェックイン済み",
+            ReservationStatus.COMPLETED: "チェックアウト済み",
+            ReservationStatus.CANCELLED: "キャンセル済み",
+        }
+        details = []
+        for reservation in reservations:
+            rooms = ", ".join(map(str, reservation.get_room_numbers()))
+            details.append(
+                f"予約番号: {reservation.reservation_number}\n"
+                f"宿泊日: {reservation.staying_date}\n"
+                f"お部屋: {rooms}\n"
+                f"料金: {reservation.get_amount():,}円\n"
+                f"状態: {status_labels.get(reservation.status, reservation.status.value)}"
+            )
+        return "ご予約内容です。\n\n" + "\n\n".join(details)
+
+    def get_cancellable_reservations(self, user_id: str):
+        """キャンセル選択ボタンへ表示できる本人の予約を返す。"""
+        return [
+            reservation
+            for reservation in self.res_ctrl.find_reservations_by_line_user_id(user_id)
+            if reservation.status == ReservationStatus.CREATED
+            and reservation.is_within_cancel_period()
+        ]
+
+    def get_room_selection_options(self, user_id: str) -> list[tuple[str, int]]:
+        """空室数に応じた部屋タイプ・室数の選択肢を返す。"""
+        stocks = self.session_manager.get_context(user_id).get("available_stocks", {})
+        return [
+            (type_name, count)
+            for type_name, stock in stocks.items()
+            for count in range(1, int(stock["count"]) + 1)
+        ]
 
     def _notify_error(self, message: str) -> str:
         return f"{message}\n\n最初からやり直してください。"

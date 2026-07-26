@@ -37,6 +37,24 @@ class ReservationControl:
                 stocks[room_type.type_name] = {"count": count, "price": room_type.price}
         return stocks
 
+    def calculate_amount(self, requested_rooms: dict[str, int]) -> int:
+        """予約確定前に表示する見積金額を計算する。"""
+        if not requested_rooms or any(count <= 0 for count in requested_rooms.values()):
+            raise BureaucraticError("部屋数は1室以上で指定してください。")
+        try:
+            return self._calculate_amount(requested_rooms)
+        except (KeyError, AttributeError):
+            raise BureaucraticError("指定された部屋タイプが見つかりません。")
+
+    def find_reservations_by_line_user_id(self, line_user_id: str) -> list[Reservation]:
+        """LINE利用者本人に紐づく予約だけを返す。"""
+        reservations = [
+            reservation for reservation in self.repository.find_all()
+            if reservation.guest and reservation.guest.line_user_id == line_user_id
+        ]
+        reservations.sort(key=lambda reservation: (reservation.staying_date, reservation.reservation_number))
+        return reservations
+
     # requested_rooms として {"Standard": 1, "Suite": 1} を受け取る
     def reserve_rooms(
         self,
@@ -58,7 +76,7 @@ class ReservationControl:
         assigned_rooms = self.hotel.allocate_rooms(staying_date, requested_rooms)
 
         # 2. 料金の計算（複数タイプの合計）
-        total_amount = self._calculate_amount(requested_rooms)
+        total_amount = self.calculate_amount(requested_rooms)
 
         # 3. 予約オブジェクトの生成と保存
         reservation = Reservation(
