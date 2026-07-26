@@ -37,7 +37,7 @@ flowchart TD
         RC["ReservationControl «control»"]
         KC["CheckInControl «control»"]
         OC["CheckOutControl «control»"]
-        CC["CancelControl «control»（保守拡張）"]
+        CC["CancelControl «control»（LINE・キャンセル）"]
     end
     subgraph D[ドメイン層]
         HT["Hotel «entity»"]
@@ -54,10 +54,11 @@ flowchart TD
         DB[(SQLite)]:::ext
     end
 
-    LINE -. Webhook（予約） .- CI
+    LINE -. Webhook（予約・キャンセル） .- CI
     FRONT -. 操作（チェックイン/アウト・予約一覧） .- FD
     CI --> SM
     CI --> RC
+    CI --> CC
     FD --> KC
     FD --> OC
     RC --> HT
@@ -120,7 +121,7 @@ flowchart TD
 | Reservation_Control | ReservationControl | コントロール |
 | CheckIn_Control | CheckInControl | コントロール |
 | CheckOut_Control | CheckOutControl | コントロール |
-| (保守拡張) | CancelControl | コントロール |
+| Cancel_Control（UC4 で追加） | CancelControl | コントロール |
 | Guest | Guest | エンティティ |
 | Hotel | Hotel | エンティティ |
 | RoomType | RoomType | エンティティ |
@@ -136,6 +137,7 @@ flowchart TD
 | クラス | 属性 | 型 |
 | --- | --- | --- |
 | Guest | name | str |
+| Guest | line_user_id | str \| None（LINE 予約者の識別子。本人確認に用いる） |
 | Reservation | reservation_number | int |
 | Reservation | staying_date | date |
 | Reservation | status | ReservationStatus |
@@ -154,11 +156,12 @@ flowchart TD
 | ReservationControl.reserveRoom() | reserve_rooms(staying_date, guest_name, requested_rooms) -> Reservation | 複数タイプ・複数室を一括確保 |
 | CheckIn_Control.CheckIn() | check_in(reservation_number) -> list[int] | 割り当て部屋番号を返す |
 | CheckOut_Control.CheckOut() | check_out(room_number) -> None | 一括精算・空室化 |
+| Cancel_Control.Cancel() | search_reservation(reservation_number, requester_user_id) -> Reservation / cancel(reservation_number, requester_user_id) -> Reservation | 本人確認 (userId 一致) を行い, 状態・期限の判定はドメインへ委譲。`requester_user_id` は必須引数 |
 | Hotel.getAvailableRoomTypes() | get_available_room_types(staying_date, num) | |
 | Hotel.allocateRooms() | allocate_rooms(staying_date, requested_rooms) -> list[Room] | All or Nothing |
 | Reservation.markCheckedIn() | mark_checked_in() | CREATED→CHECKED_IN（当日のみ） |
 | Reservation.checkOut() | check_out() | CHECKED_IN→COMPLETED（一括精算） |
-| Reservation.cancel() | cancel() | CREATED→CANCELLED |
+| Reservation.cancel() | cancel() / is_within_cancel_period() | CREATED→CANCELLED（宿泊日の前日まで） |
 | Reservation.getReservation() | (Repository へ移動) find_by_id / find_by_room_number / find_by_staying_date / find_all | 検索責務はデータソース層へ |
 
 注記: 分析で `Reservation` の操作としていた予約の検索は, 設計では `ReservationRepository` の責務へ移す (単一責任の原則)。
@@ -195,7 +198,8 @@ classDiagram
     }
     class CancelControl {
         <<control>>
-        +cancel(reservation_number) Reservation
+        +search_reservation(reservation_number, requester_user_id) Reservation
+        +cancel(reservation_number, requester_user_id) Reservation
     }
     class ReservationRepository {
         <<interface>>
@@ -208,6 +212,7 @@ classDiagram
     class Guest {
         <<entity>>
         -name: str
+        -line_user_id: str
     }
     class Hotel {
         <<entity>>
@@ -243,6 +248,7 @@ classDiagram
         -status: ReservationStatus
         +mark_checked_in() void
         +check_out() void
+        +is_within_cancel_period() bool
         +cancel() void
         +get_amount() int
         +get_room_numbers() list~int~
@@ -266,6 +272,7 @@ classDiagram
     }
 
     ChatInterface --> ReservationControl
+    ChatInterface --> CancelControl
     FrontDeskTerminal --> CheckInControl
     FrontDeskTerminal --> CheckOutControl
     ReservationControl --> Hotel
@@ -311,7 +318,7 @@ stateDiagram-v2
 
 - `mark_checked_in()` は `status == CREATED` かつ**宿泊日が当日**の場合のみ受理する (UC2 備考「チェックインは宿泊日に行う」)。それ以外は `BureaucraticError` を送出する。
 - `check_out()` は `status == CHECKED_IN` の場合のみ受理し, 紐づく全部屋を空室化 (`Room.mark_empty()`) し, `Payment` を PAID にする (一括精算)。
-- `cancel()` は `status == CREATED` の場合のみ受理する。
+- `cancel()` は `status == CREATED` かつキャンセル期限内 (宿泊日の前日まで) の場合のみ受理し, 紐づく全部屋の該当日を解放 (`Room.cancel_assign()`) する。期限判定は `Reservation.is_within_cancel_period()` に集約する。
 - **Payment**: PENDING → PAID (`check_out()` 内)。 **Room**: VACANT ↔ IN_USE (`mark_using()` / `mark_empty()`)。予約日集合 `reserved_dates` は `assign()` / `cancel_assign()` で増減する。
 
 > キャンセルは「予約をキャンセルする」(UC4) として実装済み。本人確認・期限・対話フローの詳細は [Cancel_Feature.md](Cancel_Feature.md) を参照。

@@ -1,25 +1,25 @@
 # Pull Request Summary
 
 ## Summary
-- MySQL ベースの予約リポジトリ実装を追加しました。
-- 予約の保存・検索・復元処理をインフラ層として実装しました。
-- スキーマ作成処理とテストを追加しました。
+<!-- 何を・なぜ変更したかを日本語で簡潔に記載する -->
+-
 
 ## Changes
-- Added MySQL reservation repository implementation
-- Added SQL schema for reservations and reservation_rooms
-- Added repository tests for save/find behavior
-- Added setup guide for local MySQL execution
+<!-- 変更点を層ごと（ui / application / domain / infrastructure / docs）に列挙する -->
+-
 
 ## Testing
-- Verified with:
+<!-- 実行したコマンドと結果（passed / failed の件数）を記載する -->
 
 ```powershell
-cd c:\Users\okada\.github\HRS\.code
-py -3 -m pytest -q tests/test_mysql_repository.py
+cd .code
+python -m pytest tests -q
 ```
 
+- 結果:
+
 ## Notes
-- MySQL サーバーが必要です。
-- 接続情報は環境やローカル設定に合わせて変更してください。
-- 詳細な実行手順は [MYSQL_SETUP_GUIDE.md](MYSQL_SETUP_GUIDE.md) を参照してください。
+- 永続化は **SQLite** を使用する。DB ファイルのパスは環境変数 `HRS_DB_PATH`（既定 `.code/hrs.db`）で変更できる。初回起動時にスキーマは自動作成される。
+- LINE を使わずに管理者画面を確認する場合は `python debug_web.py`（ログインパスワードは `ADMIN_PASSWORD`, 既定 `hrs-admin`）。
+- 環境変数・実行手順の詳細は [README.md](../README.md), LINE 連携の設定は [LINE_SETUP.md](LINE_SETUP.md) を参照。
+- 設計ドキュメントに影響する変更の場合は, [Design.md](../Design.md) / [Architecture.md](../Architecture.md) の該当箇所も更新する。
