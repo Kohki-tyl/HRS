@@ -21,12 +21,26 @@ LINE Developers Consoleで次の値を取得する。
 
 値はGitにコミットしない。漏えいした場合は、ConsoleからSecretの再発行またはTokenの失効・再発行を行う。
 
-PowerShellでは、サーバーを起動する同じターミナルで次のように設定する。
+リポジトリ直下の `.env.example` を `.env` にコピーし、取得した値を設定する。
+`.env` は `.gitignore` の対象なのでGitには追加されない。
 
 ```powershell
-$env:LINE_CHANNEL_ACCESS_TOKEN = "取得したChannel access token"
-$env:LINE_CHANNEL_SECRET = "取得したChannel secret"
+Copy-Item .env.example .env
 ```
+
+```dotenv
+LINE_CHANNEL_ACCESS_TOKEN=取得したChannel access token
+LINE_CHANNEL_SECRET=取得したChannel secret
+ADMIN_PASSWORD=e2e-admin
+HRS_DB_PATH=hrs_e2e_line.db
+```
+
+- `LINE_CHANNEL_ACCESS_TOKEN`: Messaging APIタブで発行したチャネルアクセストークン
+- `LINE_CHANNEL_SECRET`: Basic settingsタブのChannel secret
+- `ADMIN_PASSWORD`: 管理画面 `/front` のローカルテスト用パスワード
+- `HRS_DB_PATH`: テスト用SQLiteファイル。下記コマンドでは `.code` からの相対パス
+
+値の前後に引用符は不要で、`=` の前後に空白を入れない。実際の秘密情報をREADME、Issue、PR、チャットへ貼り付けない。
 
 ## 3. ローカルサーバーを起動する
 
@@ -36,7 +50,7 @@ $env:LINE_CHANNEL_SECRET = "取得したChannel secret"
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 py -m pip install -r requirements.txt
-py -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+py -m uvicorn main:app --env-file ../.env --reload --host 0.0.0.0 --port 8000
 ```
 
 ブラウザで `http://localhost:8000/health` を開き、次を確認する。
@@ -55,6 +69,15 @@ https://公開ホスト名/callback
 ```
 
 Webhook URLは有効なHTTPS URLである必要がある。本番では固定URLを使用する。
+
+ngrokを使う場合の例（別ターミナルで実行）:
+
+```powershell
+ngrok http 8000
+```
+
+表示された `https://...ngrok-free.app` のURL末尾に `/callback` を付けてWebhook URLに設定する。
+トンネルを停止・再起動するとURLが変わる場合は、LINE Developers Console側も更新する。
 
 ## 5. LINE Developers Consoleを設定する
 
@@ -80,6 +103,7 @@ HRSではLINE公式SDKの `WebhookHandler` が検証を行う。
 ## トラブルシューティング
 
 - `/health` の `line_configured` が `false`: 2つの環境変数を設定後、サーバーを再起動する。
+- `Invalid value for '--env-file'`: リポジトリ直下に `.env` があることと、`.code` からコマンドを実行していることを確認する。
 - Verifyが失敗する: 公開URL、HTTPS、トンネル稼働状況、`/callback` の付け忘れを確認する。
 - `400 Invalid signature`: 異なるチャネルのChannel secretを設定していないか確認する。
 - 返信だけ失敗する: Channel access tokenの有効性と、Messaging APIチャネルのTokenであることを確認する。

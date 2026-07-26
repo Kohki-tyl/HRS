@@ -11,6 +11,15 @@ LINEのAPIを用いてホテル予約・チェックイン・チェックアウ�
 LINE公式アカウント、Webhook、Channel secret、Channel access tokenの設定方法は
 [LINE_SETUP.md](.code/LINE_SETUP.md) を参照してください。
 
+ローカル実機テストでは、Git管理対象の `.env.example` を、Git管理対象外の `.env` にコピーして秘密情報を設定します。
+
+```powershell
+Copy-Item .env.example .env
+# .envを編集後
+cd .code
+python -m uvicorn main:app --env-file ../.env --reload --host 0.0.0.0 --port 8000
+```
+
 Webhook URLは次の形式です。
 
 ```text
