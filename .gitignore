@@ -16,3 +16,4 @@ venv/
 .code/hrs_e2e_*.db
 *.db-journal
 .mcp.json
+deploy/.env

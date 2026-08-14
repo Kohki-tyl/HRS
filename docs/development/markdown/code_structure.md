@@ -2,7 +2,8 @@ HRS/.code/
 │
 ├── scripts/
 │   ├── startup/
-│   │   └── main.py                 # 本番相当の起動入口（FastAPI・LINE Webhook・DI）
+│   │   ├── main.py                 # FastAPI・LINE Webhook・DI
+│   │   └── server.py               # コンテナ／PaaS向け本番起動入口
 │   ├── debug/
 │   │   ├── debug_web.py            # LINEなしで管理者画面を起動
 │   │   ├── debug_chat.py           # 利用者チャットをターミナルで実行
@@ -18,6 +19,7 @@ HRS/.code/
 │       ├── test_cancel_control.py
 │       ├── test_chat_interface.py
 │       ├── test_front_desk_terminal.py
+│       ├── test_startup_server.py
 │       └── test_web_frontdesk.py
 │
 ├── ui/                             # プレゼンテーション層（2チャネルのユーザーインタフェース）

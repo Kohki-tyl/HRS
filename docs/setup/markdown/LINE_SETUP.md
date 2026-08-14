@@ -21,11 +21,11 @@ LINE Developers Consoleで次の値を取得する。
 
 値はGitにコミットしない。漏えいした場合は、ConsoleからSecretの再発行またはTokenの失効・再発行を行う。
 
-リポジトリ直下の `.env.example` を `.env` にコピーし、取得した値を設定する。
+`deploy/.env.example` をリポジトリ直下の `.env` にコピーし、取得した値を設定する。
 `.env` は `.gitignore` の対象なのでGitには追加されない。
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item deploy/.env.example .env
 ```
 
 ```dotenv
