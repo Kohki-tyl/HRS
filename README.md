@@ -13,11 +13,11 @@ LINE Messaging API と Web フロントデスク画面を用いて、ホテル�
 - SQLite（予約データの永続化。Python 標準ライブラリ）
 - pytest（自動テスト）
 
-依存関係は [.code/requirements.txt](.code/requirements.txt) にまとめている。
+依存関係は [requirements.txt](docs/setup/text/requirements.txt) にまとめている。
 
 ## ディレクトリ構成
 
-実装は [.code/](.code/) 以下にある。各モジュールの役割は [.code/code_structure.md](.code/code_structure.md) を参照。
+実装は [.code/](.code/) 以下にある。各モジュールの役割は [code_structure.md](docs/development/markdown/code_structure.md) を参照。
 
 ---
 
@@ -28,7 +28,7 @@ LINE Messaging API と Web フロントデスク画面を用いて、ホテル�
 ### 1. 前提
 
 - Python 3.12 以上がインストールされていること（`python --version` で確認）。
-- LINE 連携を試す場合のみ LINE 公式アカウントと Channel の設定が必要（[.code/LINE_SETUP.md](.code/LINE_SETUP.md) 参照）。**テストと管理者画面・ターミナルデバッグは LINE 設定なしで動作する。**
+- LINE 連携を試す場合のみ LINE 公式アカウントと Channel の設定が必要（[LINE_SETUP.md](docs/setup/markdown/LINE_SETUP.md) 参照）。**テストと管理者画面・ターミナルデバッグは LINE 設定なしで動作する。**
 
 ### 2. セットアップ（仮想環境と依存関係）
 
@@ -36,14 +36,14 @@ LINE Messaging API と Web フロントデスク画面を用いて、ホテル�
 cd .code
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1        # macOS/Linux: source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r ../docs/setup/text/requirements.txt
 ```
 
 ### 3. 自動テストの実行（LINE 設定不要）
 
 ```powershell
 cd .code
-python -m pytest tests -q
+python -m pytest scripts/tests -q
 ```
 
 ドメイン層（状態遷移・空室判定）、UI 層（LINE 予約/キャンセル対話・フロント端末）、Web エンドポイントを通しで検証する。
@@ -54,7 +54,7 @@ LINE を使わずに、受付係向けの Web 画面と API を起動できる�
 
 ```powershell
 cd .code
-python debug_web.py
+python -m scripts.debug.debug_web
 ```
 
 - ブラウザで `http://127.0.0.1:8000/front` を開く。
@@ -68,11 +68,11 @@ LINE の代わりに、ターミナルの入力を利用者メッセージに見
 
 ```powershell
 cd .code
-python debug_chat.py     # 利用者（予約・予約キャンセル）
-python debug_front.py    # 受付係（チェックイン・チェックアウト）
+python -m scripts.debug.debug_chat     # 利用者（予約・予約キャンセル）
+python -m scripts.debug.debug_front    # 受付係（チェックイン・チェックアウト）
 ```
 
-`debug_chat.py` と `debug_front.py` は同じ SQLite ファイルを共有するため、別々のターミナルで同時に起動すると予約→チェックインの連携を確認できる。
+`scripts/debug/debug_chat.py` と `scripts/debug/debug_front.py` は同じ SQLite ファイルを共有するため、別々のターミナルで同時に起動すると予約→チェックインの連携を確認できる。
 
 ### 6. 本番相当（LINE Webhook 込み）で起動する
 
@@ -82,7 +82,7 @@ LINE と実際に連携する場合は、依存関係のインストールに加
 Copy-Item .env.example .env
 # .env を編集して Channel access token / Channel secret を設定
 cd .code
-python -m uvicorn main:app --env-file ../.env --reload --host 0.0.0.0 --port 8000
+python -m uvicorn scripts.startup.main:app --env-file ../.env --reload --host 0.0.0.0 --port 8000
 ```
 
 環境変数を直接与えてもよい。
@@ -92,7 +92,7 @@ cd .code
 $env:LINE_CHANNEL_ACCESS_TOKEN = "＜Channel access token＞"
 $env:LINE_CHANNEL_SECRET = "＜Channel secret＞"
 $env:ADMIN_PASSWORD = "＜管理者パスワード＞"
-uvicorn main:app --reload
+uvicorn scripts.startup.main:app --reload
 ```
 
 - LINE の Webhook URL は `https://＜公開ホスト名＞/callback` の形式（ngrok 等で公開する）。
@@ -114,22 +114,23 @@ uvicorn main:app --reload
 
 ## LINE Messaging API
 
-LINE 公式アカウント、Webhook、Channel secret、Channel access token の設定方法は [.code/LINE_SETUP.md](.code/LINE_SETUP.md) を参照。
+LINE 公式アカウント、Webhook、Channel secret、Channel access token の設定方法は [LINE_SETUP.md](docs/setup/markdown/LINE_SETUP.md) を参照。
 
 ## ドキュメント
 
 | ドキュメント | 内容 |
 | --- | --- |
-| [Requirements_Analysis.md](Requirements_Analysis.md) | 要求分析（ユースケース・アクティビティ図） |
-| [Domain_Analysis.md](Domain_Analysis.md) | 概念モデル（ドメイン分析） |
-| [System_Analysis.md](System_Analysis.md) | システム分析（ロバストネス分析・コミュニケーション図） |
-| [Architecture.md](Architecture.md) | アーキテクチャ設計（多層・パッケージ・クラス図・状態遷移） |
-| [Design.md](Design.md) | 詳細設計（型付きクラス図・状態遷移・シーケンス図） |
-| [Cancel_Feature.md](Cancel_Feature.md) | 予約キャンセル機能（UC4）の仕様・設計・実装（集約） |
-| [Cancel_Feature_Proposal.md](Cancel_Feature_Proposal.md) | 予約キャンセル機能の提案（検討の経緯） |
-| [E2E_Test_Checklist.md](E2E_Test_Checklist.md) | 実機テスト（LINE〜管理者画面）のチェックリスト |
-| [E2E_Test_Report_2026-07-26.md](E2E_Test_Report_2026-07-26.md) | 実機テストの実施結果 |
-| [.code/code_structure.md](.code/code_structure.md) | 実装のディレクトリ構成 |
-| [TODO.md](TODO.md) | 今後の対応項目 |
+| [Requirements_Analysis.md](docs/design/markdown/Requirements_Analysis.md) | 要求分析（ユースケース・アクティビティ図） |
+| [Domain_Analysis.md](docs/design/markdown/Domain_Analysis.md) | 概念モデル（ドメイン分析） |
+| [System_Analysis.md](docs/design/markdown/System_Analysis.md) | システム分析（ロバストネス分析・コミュニケーション図） |
+| [Architecture.md](docs/design/markdown/Architecture.md) | アーキテクチャ設計（多層・パッケージ・クラス図・状態遷移） |
+| [Design.md](docs/design/markdown/Design.md) | 詳細設計（型付きクラス図・状態遷移・シーケンス図） |
+| [Cancel_Feature.md](docs/design/markdown/Cancel_Feature.md) | 予約キャンセル機能（UC4）の仕様・設計・実装（集約） |
+| [Cancel_Feature_Proposal.md](docs/design/markdown/Cancel_Feature_Proposal.md) | 予約キャンセル機能の提案（検討の経緯） |
+| [E2E_Test_Checklist.md](docs/testing/markdown/E2E_Test_Checklist.md) | 実機テスト（LINE〜管理者画面）のチェックリスト |
+| [E2E_Test_Report_2026-07-26.md](docs/testing/markdown/E2E_Test_Report_2026-07-26.md) | 実機テストの実施結果 |
+| [code_structure.md](docs/development/markdown/code_structure.md) | 実装のディレクトリ構成 |
+| [TODO.md](docs/project/markdown/TODO.md) | 今後の対応項目 |
+| [debuglist.md](docs/project/markdown/debuglist.md) | 修正項目の記録 |
 
-将来対応する項目は [TODO.md](TODO.md) にまとめている。
+将来対応する項目は [TODO.md](docs/project/markdown/TODO.md) にまとめている。

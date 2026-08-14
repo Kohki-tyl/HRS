@@ -49,8 +49,8 @@ HRS_DB_PATH=hrs_e2e_line.db
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-py -m pip install -r requirements.txt
-py -m uvicorn main:app --env-file ../.env --reload --host 0.0.0.0 --port 8000
+py -m pip install -r ../docs/setup/text/requirements.txt
+py -m uvicorn scripts.startup.main:app --env-file ../.env --reload --host 0.0.0.0 --port 8000
 ```
 
 ブラウザで `http://localhost:8000/health` を開き、次を確認する。

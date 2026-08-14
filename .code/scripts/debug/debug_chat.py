@@ -1,15 +1,15 @@
 """客のチャット（LINE ボット相当）をターミナルで動かすデバッグ用エントリーポイント
 
 LINE Messaging API には接続せず、ターミナルの入力を Webhook のテキストに見立てて
-ChatInterface へ渡す。main.py の handle_message が行っている処理と同じ。
+ChatInterface へ渡す。scripts/startup/main.py の handle_message が行う処理と同じ。
 
-    python debug_chat.py
+    python -m scripts.debug.debug_chat
 """
 import sys
 
 from application import ReservationControl, CancelControl
 from ui import SessionManager, ChatInterface
-from debug_setup import DB_PATH, build_hotel, build_repository
+from scripts.debug.debug_setup import DB_PATH, build_hotel, build_repository
 
 # LINE の userId に相当する識別子
 DEBUG_USER_ID = "debug_line_user"
@@ -46,7 +46,7 @@ def main():
             print("チャットを終了します。")
             return
 
-        # main.py の Webhook ハンドラと同じ呼び出し
+        # scripts/startup/main.py の Webhook ハンドラと同じ呼び出し
         reply = chat_interface.handle_message(DEBUG_USER_ID, text)
         print(f"[BOT ] {reply}")
 

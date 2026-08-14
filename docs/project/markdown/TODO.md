@@ -18,13 +18,13 @@
 
 ## 予約キャンセル（UC4）
 
-- 実装済み。機能の詳細・残課題（No-show の処理導線、キャンセル料・返金、予約内容の変更）は [Cancel_Feature.md](Cancel_Feature.md) に集約している。
+- 実装済み。機能の詳細・残課題（No-show の処理導線、キャンセル料・返金、予約内容の変更）は [Cancel_Feature.md](../../design/markdown/Cancel_Feature.md) に集約している。
 
 ## 技術的負債
 
-- `@app.on_event("startup")` は FastAPI で非推奨。`lifespan` への移行（`web_frontdesk.py`）。
+- `@app.on_event("startup")` は FastAPI で非推奨。`lifespan` への移行（`scripts/shared/web_frontdesk.py`）。
 - 在庫同期は単一プロセス前提。複数ワーカーで厳密化する場合は DB 側の一意制約等を検討。
-- ホテル・部屋データが `main.py` にハードコード（部屋データの登録・管理は要求分析の範囲外）。
+- ホテル・部屋データが `scripts/startup/main.py` にハードコード（部屋データの登録・管理は要求分析の範囲外）。
 
 ## 管理者画面での拡張機能
 

@@ -1,13 +1,13 @@
 """管理者フロントデスク Web エンドポイントの通しテスト
 
-LINE（line-bot-sdk）に依存しない debug_web のアプリを FastAPI TestClient で
+LINE（line-bot-sdk）に依存しないデバッグ用 Web アプリを FastAPI TestClient で
 起動し、ブラウザ（front_desk.html / app.js）が呼ぶのと同じ HTTP エンドポイントを
 一通り検証する。認証・予約一覧・チェックイン/アウト候補・確定までを確認する。
 """
 import pytest
 from fastapi.testclient import TestClient
 
-from debug_web import create_debug_app
+from scripts.debug.debug_web import create_debug_app
 
 PASSWORD = "test-pw"
 

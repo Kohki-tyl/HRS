@@ -451,12 +451,12 @@ sequenceDiagram
 
 # 5. 実装との対応
 
-設計クラスは次のパッケージへ写像して実装している (詳細は [.code/code_structure.md](.code/code_structure.md))。
+設計クラスは次のパッケージへ写像して実装している (詳細は [code_structure.md](../../development/markdown/code_structure.md))。
 
 1. `domain/models.py`, `domain/repository_interface.py` (ドメイン層)
 2. `infrastructure/sqlite_reservation_repository.py` (インフラ層)
 3. `application/*.py` (ReservationControl, CheckInControl, CheckOutControl, CancelControl)
 4. `ui/chat_interface.py`, `ui/session_manager.py`, `ui/front_desk_terminal.py`, `ui/static` / `ui/templates` (プレゼンテーション層)
-5. `main.py` (LINE Webhook + 各層の結合), `web_frontdesk.py` (管理者 Web アプリのファクトリ), `debug_web.py` (LINE 非依存のデバッグサーバ)
+5. `scripts/startup/main.py` (LINE Webhook + 各層の結合), `scripts/shared/web_frontdesk.py` (管理者 Web アプリのファクトリ), `scripts/debug/debug_web.py` (LINE 非依存のデバッグサーバ)
 
-各層には単体テストを用意している (`.code/tests/`): ドメインの状態遷移・空室判定, ChatInterface の対話状態機械, FrontDeskTerminal の照会→確定, Web エンドポイントの通し確認。
+各層には単体テストを用意している (`.code/scripts/tests/`): ドメインの状態遷移・空室判定, ChatInterface の対話状態機械, FrontDeskTerminal の照会→確定, Web エンドポイントの通し確認。

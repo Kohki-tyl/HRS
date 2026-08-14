@@ -173,7 +173,8 @@ class Reservation:
         # キャンセルは宿泊日の前日まで（当日以降は不可）。
         # 注: 当日・過去の CREATED（無断不泊 / No-show）は、チェックイン当日ガードと
         #     このキャンセル期限の間に残る。その処理は本機能の対象外で、将来の
-        #     受付係向けキャンセル導線で扱う想定（Cancel_Feature_Proposal.md 参照）。
+        #     受付係向けキャンセル導線で扱う想定
+        #     （docs/design/markdown/Cancel_Feature_Proposal.md 参照）。
         if not self.is_within_cancel_period():
             raise BureaucraticError("キャンセルはチェックインの前日までにお願いします。")
 

@@ -32,7 +32,7 @@
 - [x] `.env` に `LINE_CHANNEL_ACCESS_TOKEN`、`LINE_CHANNEL_SECRET`、`ADMIN_PASSWORD`、`HRS_DB_PATH` を設定
 - [x] `.env` が `.gitignore` によりGit追跡対象外であることを確認
 - [x] E2E用SQLite DBがGit追跡対象外であることを確認
-- [x] `uvicorn main:app --env-file ../.env` で起動
+- [x] `uvicorn scripts.startup.main:app --env-file ../.env` で起動
 - [x] `GET /health` が `status: ok`、`line_configured: true` を返す
 - [x] ngrokでローカルポート8000をHTTPS公開
 - [x] LINE Developers ConsoleのWebhook検証が成功

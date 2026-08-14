@@ -1,7 +1,7 @@
 """管理者フロントデスク（Web UI）の FastAPI アプリを生成するファクトリ
 
-LINE には依存しない。本番エントリ (main.py) と、LINE を使わずに起動できる
-デバッグサーバ (debug_web.py) の両方がこのファクトリを使うことで、
+LINE には依存しない。本番エントリ (scripts/startup/main.py) と、LINE を使わずに
+起動できるデバッグサーバ (scripts/debug/debug_web.py) の両方がこのファクトリを使うことで、
 管理者向けエンドポイントの定義を一箇所に集約する（実装の二重化を防ぐ）。
 """
 import os
@@ -17,9 +17,9 @@ from pydantic import BaseModel
 from domain import Reservation, Room, Guest, Payment, ReservationStatus, ReservationRepository
 from ui import FrontDeskTerminal
 
-_BASE = Path(__file__).parent
-_STATIC_DIR = _BASE / "ui" / "static"
-_TEMPLATE = _BASE / "ui" / "templates" / "front_desk.html"
+_CODE_ROOT = Path(__file__).resolve().parents[2]
+_STATIC_DIR = _CODE_ROOT / "ui" / "static"
+_TEMPLATE = _CODE_ROOT / "ui" / "templates" / "front_desk.html"
 
 
 class LoginRequest(BaseModel):

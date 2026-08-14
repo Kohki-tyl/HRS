@@ -11,12 +11,12 @@
 
 ## 0. 事前準備・環境構築
 
-- [ ] `cd .code && python -m venv .venv` → 有効化 → `pip install -r requirements.txt` が成功する
+- [ ] `cd .code && python -m venv .venv` → 有効化 → `pip install -r ../docs/setup/text/requirements.txt` が成功する
   - 留意: `line-bot-sdk` v3 は依存 `aiohttp` のビルドが必要。失敗する場合は Python/ビルドツールのバージョンを確認。
-- [ ] LINE Developers で Messaging API チャネルを作成し、Channel access token / Channel secret を取得（[.code/LINE_SETUP.md](.code/LINE_SETUP.md)）
+- [ ] LINE Developers で Messaging API チャネルを作成し、Channel access token / Channel secret を取得（[LINE_SETUP.md](../../setup/markdown/LINE_SETUP.md)）
 - [ ] 公開 URL を用意（ngrok 等）し、LINE の Webhook URL を `https://＜公開ホスト＞/callback` に設定、Webhook 利用を ON、応答メッセージ（自動応答）を OFF
 - [ ] 環境変数を設定して起動: `LINE_CHANNEL_ACCESS_TOKEN` / `LINE_CHANNEL_SECRET` / `ADMIN_PASSWORD`（必要に応じて `HRS_DB_PATH`）
-- [ ] `uvicorn main:app` が例外なく起動する（起動ログにデモ予約の投入が表示される＝初回のみ）
+- [ ] `uvicorn scripts.startup.main:app` が例外なく起動する（起動ログにデモ予約の投入が表示される＝初回のみ）
 - [ ] `GET /health` が `line_configured: true` を返す
 - [ ] LINE の「Webhook の検証」ボタンが成功する（署名検証 OK）
 
@@ -136,8 +136,8 @@
 ## 7. 既知の注意点（テスト時に留意）
 
 - `@app.on_event("startup")` の DeprecationWarning がログに出るが、動作には影響しない（`lifespan` 移行は別 TODO）。
-- 在庫同期は単一プロセス前提。複数リクエストの同時実行では在庫の競合が理論上あり得る（[TODO.md](TODO.md) 参照）。
-- No-show（当日・過去の未チェックイン予約）を片付ける導線は現状ない（[Cancel_Feature.md](Cancel_Feature.md) の残課題）。
+- 在庫同期は単一プロセス前提。複数リクエストの同時実行では在庫の競合が理論上あり得る（[TODO.md](../../project/markdown/TODO.md) 参照）。
+- No-show（当日・過去の未チェックイン予約）を片付ける導線は現状ない（[Cancel_Feature.md](../../design/markdown/Cancel_Feature.md) の残課題）。
 - デモ予約の宿泊日は起動日基準（本日・翌日）。日付が変わると本日分が変化する点に注意。
 
 ---

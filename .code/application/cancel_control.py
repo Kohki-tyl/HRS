@@ -4,7 +4,8 @@ from domain import Reservation, ReservationRepository, BureaucraticError
 class CancelControl:
     """予約のキャンセル (UC4) の進行を管理するコントロール
 
-    Architecture.md のステートマシン図にある CREATED -> CANCELLED の導線に対応する。
+    docs/design/markdown/Architecture.md のステートマシン図にある
+    CREATED -> CANCELLED の導線に対応する。
     セルフキャンセルの本人確認として, キャンセルは「予約者の LINE userId」と
     「要求者の userId」が一致する場合のみ許可する (認可はコントロールの責務)。
     状態・期限のガードはドメイン (Reservation.cancel) が担う。

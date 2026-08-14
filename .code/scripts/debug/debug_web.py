@@ -5,7 +5,7 @@ LINE Messaging API（line-bot-sdk）を使わずに、受付係向けの Web UI 
 create_debug_app() を使って同じアプリを検証する。
 
 起動:
-    python debug_web.py
+    python -m scripts.debug.debug_web
     → http://127.0.0.1:8000/front  （既定パスワード: hrs-admin）
 
 環境変数:
@@ -22,7 +22,7 @@ from domain import Hotel, RoomType, Room
 from infrastructure import SQLiteReservationRepository
 from application import CheckInControl, CheckOutControl
 from ui import FrontDeskTerminal
-from web_frontdesk import create_frontdesk_app
+from scripts.shared.web_frontdesk import create_frontdesk_app
 
 
 def build_hotel() -> Hotel:
@@ -50,8 +50,10 @@ def create_debug_app(
     return app, repository
 
 
-# uvicorn 用のモジュールレベル app（`uvicorn debug_web:app` でも起動可）
-_DB_PATH = os.environ.get("HRS_DB_PATH", str(Path(__file__).with_name("hrs_debug_web.db")))
+# uvicorn 用のモジュールレベル app
+# （`uvicorn scripts.debug.debug_web:app` でも起動可）
+_CODE_ROOT = Path(__file__).resolve().parents[2]
+_DB_PATH = os.environ.get("HRS_DB_PATH", str(_CODE_ROOT / "hrs_debug_web.db"))
 _ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "hrs-admin").strip()
 app, repository = create_debug_app(db_path=_DB_PATH, admin_password=_ADMIN_PASSWORD, seed_demo=True)
 

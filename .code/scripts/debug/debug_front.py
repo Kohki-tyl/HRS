@@ -3,13 +3,13 @@
 FrontDeskTerminal を直接呼ぶ。照会 → 利用者と確認 → 確定 という
 UC2 / UC3 の手順をそのまま辿る。
 
-    python debug_front.py
+    python -m scripts.debug.debug_front
 """
 import sys
 
 from application import CheckInControl, CheckOutControl
 from ui import FrontDeskTerminal
-from debug_setup import DB_PATH, build_repository
+from scripts.debug.debug_setup import DB_PATH, build_repository
 
 
 def _confirm(prompt: str) -> bool:

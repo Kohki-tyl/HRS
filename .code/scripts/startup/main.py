@@ -22,7 +22,7 @@ from domain import Hotel, RoomType, Room
 from infrastructure import SQLiteReservationRepository
 from application import ReservationControl, CheckInControl, CheckOutControl, CancelControl
 from ui import SessionManager, SessionState, ChatInterface, FrontDeskTerminal
-from web_frontdesk import create_frontdesk_app
+from scripts.shared.web_frontdesk import create_frontdesk_app
 
 # ==========================================
 # 1. 依存性の注入 (DI) とシステムの初期化
@@ -30,7 +30,8 @@ from web_frontdesk import create_frontdesk_app
 
 # --- インフラストラクチャ層 ---
 # 永続化は SQLite に統一する。DB ファイルのパスは環境変数 HRS_DB_PATH で上書き可能。
-db_path = os.environ.get("HRS_DB_PATH", str(Path(__file__).parent / "hrs.db"))
+_CODE_ROOT = Path(__file__).resolve().parents[2]
+db_path = os.environ.get("HRS_DB_PATH", str(_CODE_ROOT / "hrs.db"))
 repository = SQLiteReservationRepository(db_path)
 
 # --- ドメイン層 (初期データの用意) ---
@@ -56,7 +57,8 @@ chat_interface = ChatInterface(res_ctrl, cancel_ctrl, session_manager)
 front_desk = FrontDeskTerminal(ci_ctrl, co_ctrl)
 
 # 管理者フロントデスク（ログイン・予約一覧・チェックイン/アウト）を含む app を生成。
-# 管理者向けエンドポイントの定義は web_frontdesk.create_frontdesk_app に集約している。
+# 管理者向けエンドポイントの定義は
+# scripts.shared.web_frontdesk.create_frontdesk_app に集約している。
 app = create_frontdesk_app(repository, front_desk, seed_demo=True)
 
 

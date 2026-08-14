@@ -183,7 +183,7 @@ LINE の Webhook イベントには送信者の `userId` (`event.source.user_id`
 ## 8. 実装とテスト
 
 - 実装: `.code/domain/models.py`（`Guest.line_user_id` / `Reservation.cancel` / `is_within_cancel_period`）, `.code/application/cancel_control.py`, `.code/application/reservation_control.py`（`line_user_id` 保存）, `.code/infrastructure/sqlite_reservation_repository.py`（`guest_line_user_id` 列・マイグレーション）, `.code/ui/session_manager.py`, `.code/ui/chat_interface.py`。
-- テスト: `.code/tests/test_cancel_control.py`（本人確認・状態/期限・情報秘匿）, `.code/tests/test_chat_interface.py`（LINE キャンセル対話）, `.code/tests/test_domain_models.py`（期限ガード）, `.code/tests/test_sqlite_repository.py`（既存 DB のマイグレーション）。
+- テスト: `.code/scripts/tests/test_cancel_control.py`（本人確認・状態/期限・情報秘匿）, `.code/scripts/tests/test_chat_interface.py`（LINE キャンセル対話）, `.code/scripts/tests/test_domain_models.py`（期限ガード）, `.code/scripts/tests/test_sqlite_repository.py`（既存 DB のマイグレーション）。
 
 ---
 

@@ -22,7 +22,7 @@
 
 ### 未実装 (本提案の対象)
 
-- **UI 導線が存在しない。** LINE (`ChatInterface`), フロントデスク Web, `main.py` のいずれからも `CancelControl` は呼ばれていない。利用者がキャンセルを実行する入口がない。
+- **UI 導線が存在しない。** LINE (`ChatInterface`), フロントデスク Web, `scripts/startup/main.py` のいずれからも `CancelControl` は呼ばれていない。利用者がキャンセルを実行する入口がない。
 - **本人確認の仕組みがない。** 予約は LINE の利用者識別子と紐づけて保存していないため, 現状のままでは予約番号を知る第三者もキャンセルできてしまう。→ 本提案で対応する。
 
 > 注: `ChatInterface` の「キャンセル」キーワードは**予約対話の中断 (リセット)** 用であり, 既存予約のキャンセルとは別物である。
@@ -232,7 +232,7 @@ stateDiagram-v2
 - `Domain_Analysis.md`: `Guest` (または `Reservation`) に予約者の LINE 識別子を持つことを反映。
 - `System_Analysis.md`: ロバストネス分析・コミュニケーション図に UC4 を追加。
 - `Architecture.md` / `Design.md`: `CancelControl` を「保守拡張の受け皿」から「実装済み機能」に格上げ, 本人確認・期限ガードとシーケンス図を追加。
-- `.code/UIdesign.md`: LINE (ユーザー側) にキャンセルの対話フローを追記。
+- `UIdesign.md`: LINE (ユーザー側) にキャンセルの対話フローを追記。
 
 ---
 
