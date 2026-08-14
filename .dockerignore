@@ -1,0 +1,14 @@
+.git
+.github
+.venv
+**/__pycache__
+**/.pytest_cache
+**/*.py[cod]
+**/*.db
+**/*.db-journal
+.env
+deploy/.env
+Astah_latest
+UML_images
+docs/design/pdf
+docs/testing/pdf

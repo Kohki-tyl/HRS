@@ -1,0 +1,20 @@
+services:
+  hrs:
+    build:
+      context: .
+    ports:
+      - "${HOST_PORT:-8000}:8000"
+    environment:
+      HRS_ENV: production
+      PORT: "8000"
+      HRS_DB_PATH: /data/hrs.db
+      HRS_SEED_DEMO: "${HRS_SEED_DEMO:-false}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set}"
+      LINE_CHANNEL_ACCESS_TOKEN: "${LINE_CHANNEL_ACCESS_TOKEN:-}"
+      LINE_CHANNEL_SECRET: "${LINE_CHANNEL_SECRET:-}"
+    volumes:
+      - hrs_data:/data
+    restart: unless-stopped
+
+volumes:
+  hrs_data:

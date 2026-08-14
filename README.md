@@ -76,10 +76,10 @@ python -m scripts.debug.debug_front    # 受付係（チェックイン・チェ
 
 ### 6. 本番相当（LINE Webhook 込み）で起動する
 
-LINE と実際に連携する場合は、依存関係のインストールに加えて Channel の秘密情報を与える。ルートの `.env.example`（Git 管理対象）を `.env`（Git 管理対象外）へコピーして編集し、`--env-file` で読み込ませる方法を推奨する。
+LINE と実際に連携する場合は、依存関係のインストールに加えて Channel の秘密情報を与える。`deploy/.env.example`（Git 管理対象）をルートの `.env`（Git 管理対象外）へコピーして編集し、`--env-file` で読み込ませる方法を推奨する。
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item deploy/.env.example .env
 # .env を編集して Channel access token / Channel secret を設定
 cd .code
 python -m uvicorn scripts.startup.main:app --env-file ../.env --reload --host 0.0.0.0 --port 8000
@@ -105,10 +105,36 @@ uvicorn scripts.startup.main:app --reload
 | --- | --- | --- |
 | `ADMIN_PASSWORD` | 管理者フロントデスク画面のログインパスワード | `hrs-admin`（開発用） |
 | `HRS_DB_PATH` | SQLite データファイルのパス | `.code/hrs.db` |
+| `HRS_SEED_DEMO` | 起動時にデモ予約を投入するか | `false` |
+| `PORT` | 本番起動サーバーの待受ポート | `8000` |
 | `LINE_CHANNEL_ACCESS_TOKEN` | LINE Messaging API のアクセストークン（LINE 連携時のみ） | （未設定） |
 | `LINE_CHANNEL_SECRET` | LINE Webhook の署名検証用シークレット（LINE 連携時のみ） | （未設定） |
 
-ルートの `.env.example` をコピーして `.env` を作り、上記のように `--env-file ../.env` で読み込ませるか、PowerShell の環境変数として直接与える。`.env` はアプリ側で自動読み込みされないため、`--env-file` を付けない起動方法では環境変数として設定するか、デプロイ先の秘密情報管理へ登録すること。`.env` は Git 管理対象外であり、秘密情報を Issue や Pull Request に貼らないこと。
+`deploy/.env.example` をコピーして `.env` を作り、上記のように `--env-file ../.env` で読み込ませるか、PowerShell の環境変数として直接与える。`.env` はアプリ側で自動読み込みされないため、`--env-file` を付けない起動方法では環境変数として設定するか、デプロイ先の秘密情報管理へ登録すること。`.env` は Git 管理対象外であり、秘密情報を Issue や Pull Request に貼らないこと。
+
+### 8. Dockerでデプロイする
+
+Docker／Docker Composeが利用できる環境では、次の手順で起動できる。
+
+```powershell
+Copy-Item deploy/.env.example deploy/.env
+# deploy/.env の ADMIN_PASSWORD を必ず変更する
+docker compose --env-file deploy/.env up --build -d
+```
+
+- アプリ: `http://localhost:8000/front`
+- ヘルスチェック: `http://localhost:8000/health`
+- SQLiteデータはDockerボリューム `hrs_data` の `/data/hrs.db` に永続化される。
+- `ADMIN_PASSWORD` が未設定または既定値のままの場合、本番コンテナは起動を拒否する。
+- LINE連携時は `deploy/.env` にアクセストークンとシークレットを設定し、公開HTTPS URLの `/callback` をWebhook URLに登録する。
+
+停止する場合は次を実行する。データを保持するため、通常は `--volumes` を付けない。
+
+```powershell
+docker compose --env-file deploy/.env down
+```
+
+Docker対応PaaSでもルートの `Dockerfile` を利用できる。`ADMIN_PASSWORD` をシークレットとして設定し、SQLiteを使い続ける場合は `/data` に永続ディスクを割り当てる。複数インスタンス構成ではSQLiteを共有せず、外部データベースへの移行が必要となる。
 
 ---
 

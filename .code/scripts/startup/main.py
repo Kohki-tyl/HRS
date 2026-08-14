@@ -59,7 +59,10 @@ front_desk = FrontDeskTerminal(ci_ctrl, co_ctrl)
 # 管理者フロントデスク（ログイン・予約一覧・チェックイン/アウト）を含む app を生成。
 # 管理者向けエンドポイントの定義は
 # scripts.shared.web_frontdesk.create_frontdesk_app に集約している。
-app = create_frontdesk_app(repository, front_desk, seed_demo=True)
+seed_demo = os.environ.get("HRS_SEED_DEMO", "false").strip().lower() in {
+    "1", "true", "yes", "on",
+}
+app = create_frontdesk_app(repository, front_desk, seed_demo=seed_demo)
 
 
 # ==========================================
